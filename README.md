@@ -1,8 +1,8 @@
 # Klimakoffer.jl
 
 [![Docs-dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://klimakoffer.github.io/Klimakoffer.jl/dev)
-<!-- [![Build Status](https://github.com/klimakoffer/Klimakoffer.jl/workflows/CI/badge.svg)](https://github.com/klimakoffer/Klimakoffer.jl/actions?query=workflow%3ACI) -->
-<!-- [![Coveralls](https://coveralls.io/repos/github/klimakoffer/Klimakoffer.jl/badge.svg?branch=main)](https://coveralls.io/github/klimakoffer/Klimakoffer.jl?branch=main) -->
+[![Build Status](https://github.com/klimakoffer/Klimakoffer.jl/workflows/CI/badge.svg)](https://github.com/klimakoffer/Klimakoffer.jl/actions?query=workflow%3ACI)
+[![Coveralls](https://coveralls.io/repos/github/klimakoffer/Klimakoffer.jl/badge.svg?branch=main)](https://coveralls.io/github/klimakoffer/Klimakoffer.jl?branch=main)
 [![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](https://opensource.org/licenses/MIT)
 <!-- [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5221552.svg)](https://doi.org/10.5281/zenodo.5221552) -->
 
