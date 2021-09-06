@@ -1,6 +1,6 @@
 # Klimakoffer.jl
 
-<!-- [![Docs-dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://klimakoffer.github.io/Klimakoffer.jl/dev) -->
+[![Docs-dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://klimakoffer.github.io/Klimakoffer.jl/dev)
 <!-- [![Build Status](https://github.com/klimakoffer/Klimakoffer.jl/workflows/CI/badge.svg)](https://github.com/klimakoffer/Klimakoffer.jl/actions?query=workflow%3ACI) -->
 <!-- [![Coveralls](https://coveralls.io/repos/github/klimakoffer/Klimakoffer.jl/badge.svg?branch=main)](https://coveralls.io/github/klimakoffer/Klimakoffer.jl?branch=main) -->
 [![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](https://opensource.org/licenses/MIT)
@@ -9,6 +9,13 @@
 Klimakoffer is about making the process of climate simulation comprehensible and fun.
 
 **Note: Klimakoffer is currently in pre-alpha stage and anything might change at any time.**
+
+## Installation and usage
+There is nothing here yet :grimacing:
+
+## Documentation
+There is not much there yet either, but
+[here you go](https://klimakoffer.github.io/Klimakoffer.jl/dev).
 
 ## Authors
 Klimakoffer is maintained by
