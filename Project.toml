@@ -2,3 +2,6 @@ name = "Klimakoffer"
 uuid = "2a3da7d0-32ba-46a6-a7d5-86c91f8fabb4"
 authors = ["Gregor Gassner <ggassner@uni-koeln.de", "Johannes Markert <jmarkert@math.uni-koeln.de>", "Andrés Rueda-Ramírez <aruedara@uni-koeln.de", "Michael Schlottke-Lakemper <michael@sloede.com>"]
 version = "0.1.0"
+
+[compat]
+julia = "1.6"
