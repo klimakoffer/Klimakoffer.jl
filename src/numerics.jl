@@ -57,10 +57,29 @@ function mesh_init(nx::Int)
     return mesh_t(nx,ny,dof,h,sh2,geom,csc2,cot,area)
 end
 
-#function Matrix_assemble(mesh::mesh_t,dt)
-    
+struct model_t
+    D_DiffCoeff::Array{Float64,2}
+    C_HeatCapacity::Array{Float64,2}
+    a_albedo::Array{Float64,2}
+    SolarForcing::Array{Float64,3}
+    A_coeff::Float64
+    B_coeff::Float64
+end
 
-#end
+function model_init(mesh,NT)
+    @unpack nx,ny = mesh
+
+    D_DiffCoeff    = ones(Float64,nx,ny)
+    C_HeatCapacity = ones(Float64,nx,ny)
+    a_albedo       = ones(Float64,nx,ny)
+    SolarForcing   = ones(Float64,nx,ny,NT)
+
+    # Call fancy routines from the puppies team 
+    A_coeff = 210.3  #[W/m^2]   : CO2 coefficient in the notes/paper
+    B_coeff = 2.15   #[W/m^2/°C]: sensitivity of the seasonal cycle and annual change in the forcing agents
+
+    return model_t(D_DiffCoeff,C_HeatCapacity,a_albedo,SolarForcing,A_coeff,B_coeff)
+end
 
 function main()
     #Input
@@ -78,9 +97,7 @@ function main()
     mesh = mesh_init(nx)
 
     #Static parameters
-    D_DiffCoeff    = ones(Float64,mesh.nx,mesh.ny)
-    C_HeatCapacity = ones(Float64,mesh.nx,mesh.ny)
-    a_albedo       = ones(Float64,mesh.nx,mesh.ny)
+    
 
     #Solver variables 
     Temp = zeros(Float64,mesh.dof)
@@ -88,16 +105,28 @@ function main()
 
     #Read in parameters
     ###################
-    A_coeff = 210.3  #[W/m^2]   : CO2 coefficient in the notes/paper
-    B_coeff = 2.15   #[W/m^2/°C]: sensitivity of the seasonal cycle and annual change in the forcing agents
+
+    model = model_init(mesh,NT)
 
 
     # Assemble the matrix
     #####################
 
-    @unpack nx,ny,dof,h,sh2,geom,csc2,cot,area = mesh
+    A = ComputeMatrix(mesh,NT,model)
 
-    A    = zeros(Float64,mesh.dof,mesh.dof)
+    RHS     = zeros(Float64,mesh.dof)
+    LastRHS = zeros(Float64,mesh.dof)
+
+    time_step = 2
+    UpdateRHS!(RHS, mesh, NT, time_step, Temp, model, LastRHS)
+
+    return (;A,RHS)
+end
+
+function ComputeMatrix(mesh,NT,model)
+    @unpack nx,ny,dof,h,sh2,geom,csc2,cot,area = mesh
+    @unpack D_DiffCoeff,C_HeatCapacity,B_coeff = model
+    A    = zeros(Float64,dof,dof)
     # Inner DOFs (c coefficients are divided by h^2)
     for j=2:ny-1
         for i=1:nx
@@ -170,17 +199,23 @@ function main()
             A[row_idx,dof-2*nx+ii] = - geom * DT2sp[ii]
         end
     end
-
-    RHS     = zeros(Float64,mesh.dof)
-    lastRHS = zeros(Float64,mesh.dof)
-
-
-
-    return (;A,RHS)
+    return A
 end
 
+function UpdateRHS!(RHS, mesh, NT, time_step, Temp, model, LastRHS)
+    @unpack nx,ny = mesh
+    @unpack C_HeatCapacity, SolarForcing, A_coeff = model
+    for j=1:ny
+        for i=1:nx
+            row_idx = index1d(i,j,nx)
 
-#heatmap(1:size(A,1), 1:size(A,2), A,   c=cgrad([:blue, :white,:red, :yellow]),  title="Matrix sparsity")
-
-#Time loop
-##########
+            RHS[row_idx] = 4 * C_HeatCapacity[i,j] * Temp[row_idx] * NT  + LastRHS[row_idx] - 2 * A_coeff
+            if (time_step == 1)
+                RHS[row_idx] += SolarForcing[i,j,NT] + SolarForcing[i,j,time_step]
+            else
+                RHS[row_idx] += SolarForcing[i,j,time_step-1] + SolarForcing[i,j,time_step]
+            end
+        end
+    end
+    LastRHS .= RHS
+end
