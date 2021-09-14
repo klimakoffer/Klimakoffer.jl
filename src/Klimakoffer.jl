@@ -1,5 +1,9 @@
 module Klimakoffer
 
+include("Klimaparameter.jl")
+
+export A, C, read_albedo
+
 export answer, Mesh
 
 """
