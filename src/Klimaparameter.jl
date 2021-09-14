@@ -1,4 +1,4 @@
-  function A(CO2ppm)
+  function calc_CO2_concentration_A(CO2ppm)
 
     # Define base values CO2_Base and A_Base
     CO2_Base = 315.0
@@ -11,7 +11,7 @@
   end
 
 
-  function C(geography, B)
+  function calc_heat_capacities_C(geography, B)
 
     # Depths 
     depth_atmos = 5000.         # meters
@@ -95,6 +95,70 @@
 
     return heatcap, tau_land, tau_snow, tau_sea_ice, tau_mixed_layer
   end
+
+
+  # Calculate the diffusion coefficients at finest grid level.
+  function calc_diffusion_coefficients(geography,nlongitude=128,nlatitude=65)
+
+    Keq     = 0.65 # coefficinet for diffusion at equator
+    Kocean  = 0.40 # coefficient for ocean diffusion
+    Kland   = 0.65 # coefficinet for land diffusion
+    KlandNP = 0.28 # coefficinet for land diffusion (north pole)
+    KlandSP = 0.20 # coefficinet for land diffusion (south pole)
+
+    diffusion = zeros(Float64,nlongitude,nlatitude)
+
+    j_equator = div(nlatitude,2) + 1
+
+    for j = 1:nlatitude
+        theta = pi*real(j-1)/real(nlatitude-1)
+        colat = sin(theta)^5
+
+        for i = 1:nlongitude
+            let geo = geography[i,j]
+                if geo >= 5 && Geo <= 7 # oceans
+                   diffusion[i,j] = (Keq-Kocean)*colat + Kocean
+                else # land, sea ice, etc
+                    if j <= j_equator # northern hemisphere
+                        diffusion[i,j] = (Kland-KlandNP)*colat + KlandNP
+                    else # southern hemisphere
+                        diffusion[i,j] = (Kland-KlandSP)*colat + KlandSP
+                    end
+                 end
+            end
+        end
+    end
+
+    return diffusion
+  end
+
+  # Calculate the area weighted mean of the diffusion at the mid-point between
+  # the pole and the first ring of grid points.
+
+  # If you need the mean diffusion at the poles just do the following:
+  #   mean_diffusion_north = sum(diffusion_north)
+  #   mean_diffusion_south = sum(diffusion_south)
+
+  function calc_diffusion_coefficients_poles(diffusion,nlongitude=128,nlatitude=65)
+
+    # Fractional areas for the poles
+    angle  = pi/real(nlatitude-1)
+    area_1 = 0.5*(1.0 - cos(0.5*angle))
+    area_2 = sin(0.5*angle)*sin(angle)/float(nlongitude)
+
+    total_area = area_1 + area_2
+
+    diffusion_north = zeros(Float64,nlongitude)
+    diffusion_south = zeros(Float64,nlongitude)
+
+    for i = 1:nlongitude
+        diffusion_north[i] = (area_1*diffusion[1,        1] + area_2*diffusion[i,          2])/total_area
+        diffusion_south[i] = (area_1*diffusion[1,nlatitude] + area_2*diffusion[i,nlatitude-1])/total_area
+    end
+
+    return diffusion_north,diffusion_south
+  end
+
 
 
   function read_albedo(filepath="albedo.dat",nlongitude=128,nlatitude=65)
