@@ -1,3 +1,4 @@
+using UnPack
 
 #Mapping functions
 ##################
@@ -12,21 +13,19 @@ function index1d(i,j,nx)
     return i+(j-1)*nx
 end
 
-function main()
-    #Input
-    ######
+struct mesh_t
+    nx::Int         # Number of DOFs in x (Longitude)
+    ny::Int         # Number of DOFs in y (Latitude)
+    dof::Int
+    h::Float64
+    sh2::Float64
+    geom::Float64
+    csc2::Array{Float64,1}
+    cot::Array{Float64,1}
+    area::Array{Float64,1}
+end
 
-
-    #Initial definitions
-    ####################
-
-    #Time-discretization parameters
-    NT = 48 # Number of time-steps per year
-
-    dt = 1/NT
-
-    #Mesh
-    nx = 128
+function mesh_init(nx::Int)
     ny = Int(nx/2+1) # 65
     dof = nx*ny
 
@@ -55,15 +54,37 @@ function main()
 
     geom = sin(0.5*h)/area[1]
 
+    return mesh_t(nx,ny,dof,h,sh2,geom,csc2,cot,area)
+end
+
+#function Matrix_assemble(mesh::mesh_t,dt)
+    
+
+#end
+
+function main()
+    #Input
+    ######
+    nx = 16
+    NT = 48 # Number of time-steps per year
+
+    #Initial definitions
+    ####################
+
+    #Time-discretization parameters
+    dt = 1/NT
+
+    #Mesh construction
+    mesh = mesh_init(nx)
+
     #Static parameters
-    D_DiffCoeff    = ones(Float64,nx,ny)
-    C_HeatCapacity = ones(Float64,nx,ny)
-    a_albedo       = ones(Float64,nx,ny)
+    D_DiffCoeff    = ones(Float64,mesh.nx,mesh.ny)
+    C_HeatCapacity = ones(Float64,mesh.nx,mesh.ny)
+    a_albedo       = ones(Float64,mesh.nx,mesh.ny)
 
     #Solver variables 
-    A    = zeros(Float64,dof,dof)
-    RHS  = zeros(Float64,dof)
-    Temp = zeros(Float64,dof)
+    Temp = zeros(Float64,mesh.dof)
+    Temp.= 5 # Magic initialization
 
     #Read in parameters
     ###################
@@ -74,6 +95,9 @@ function main()
     # Assemble the matrix
     #####################
 
+    @unpack nx,ny,dof,h,sh2,geom,csc2,cot,area = mesh
+
+    A    = zeros(Float64,mesh.dof,mesh.dof)
     # Inner DOFs (c coefficients are divided by h^2)
     for j=2:ny-1
         for i=1:nx
@@ -110,6 +134,9 @@ function main()
             A[row_idx,col_idx_c2] = -c2
             A[row_idx,col_idx_c3] = -c3
             A[row_idx,col_idx_c4] = -c4
+
+            # Get RHS
+            # RHS[row_idx] = -(c0 * Temp[col_idx_c0] - c1 * Temp[col_idx_c0] - c2 * Temp[col_idx_c2] - c3 * Temp[col_idx_c3] - c4 * Temp[col_idx_c4]) + 4 * C_HeatCapacity[i,j]
         end
     end
 
@@ -144,10 +171,14 @@ function main()
         end
     end
 
-    
+    RHS     = zeros(Float64,mesh.dof)
+    lastRHS = zeros(Float64,mesh.dof)
+
+
 
     return (;A,RHS)
 end
+
 
 #heatmap(1:size(A,1), 1:size(A,2), A,   c=cgrad([:blue, :white,:red, :yellow]),  title="Matrix sparsity")
 
