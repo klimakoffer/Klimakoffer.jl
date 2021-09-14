@@ -108,3 +108,16 @@
     return result
   end
 
+ 
+  function read_world(filepath="The_World.dat",nlongitude=128,nlatitude=65)
+    result = zeros(Float64,nlatitude,nlongitude)
+    open(filepath) do fh
+        for lat = 1:nlatitude
+            if eof(fh) break end
+            result[lat,:] = parse.(Int8,split(strip(readline(fh) ),r""))
+        end
+    end
+    return result
+  end
+
+

@@ -2,7 +2,7 @@ module Klimakoffer
 
 include("Klimaparameter.jl")
 
-export A, C, read_albedo
+export A, C, read_albedo, read_world
 
 export answer, Mesh
 
