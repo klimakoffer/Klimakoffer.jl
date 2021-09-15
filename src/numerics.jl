@@ -40,7 +40,7 @@ function mesh_init(nx::Int)
     csc2 = zeros(Float64,ny) # csc^2(theta), where theta is the colatitude angle (from the pole)
     cot  = zeros(Float64,ny) #   cot(theta), where theta is the colatitude angle (from the pole)
     for j=2:ny-1
-        theta = h/(j-1)
+        theta = h*(j-1)
         sintheta = sin(theta)
         csc2[j] = 1/sintheta^2
         cot[j] = cos(theta)/sintheta
@@ -76,28 +76,31 @@ function model_init(mesh,NT)
     # Constants
     CO2ppm  = 315 # 1950
     B_coeff = 2.15   #[W/m^2/°C]: sensitivity of the seasonal cycle and annual change in the forcing agents
-    A_coeff = calc_CO2_concentration(CO2ppm)
-
+    
     # Read parameters
+    
+    A_coeff = calc_CO2_concentration(CO2ppm)
     geography = read_geography("The_World.dat",nx,ny)
     a_albedo    = read_albedo("albedo.dat",nx,ny)
     D_DiffCoeff = calc_diffusion_coefficients(geography,nx,ny)
-    C_HeatCapacity, tau_land, tau_snow, tau_sea_ice, tau_mixed_layer = calc_heat_capacities(geography,B_coeff)
+    C_HeatCapacity, tau_land, tau_snow, tau_sea_ice, tau_mixed_layer = calc_heat_capacities(geography,B_coeff) # TODO: This is not the same as Fortran
 
     coalbedo = 1.0 .- a_albedo
-    SolarForcing = calc_solar_forcing(coalbedo,A_coeff);
+    SolarForcing = calc_solar_forcing(coalbedo,A_coeff); # TODO: Significant differences with fortran
     
-
-    #= # Toy coefficients
+    
+    # Toy coefficients
+    #= SolarForcing   = ones(Float64,nx,ny,NT)
+    SolarForcing  .= 0.0
     C_HeatCapacity = ones(Float64,nx,ny)
+    C_HeatCapacity.= 1.0
+    
     a_albedo       = zeros(Float64,nx,ny)
     D_DiffCoeff    = ones(Float64,nx,ny)
-    SolarForcing   = ones(Float64,nx,ny,NT)
-
     D_DiffCoeff   .= 0.5
-    C_HeatCapacity.= 10
+    
     a_albedo      .= 0.5
-    SolarForcing  .= 0.0
+    
     A_coeff = 210.3  #[W/m^2]   : CO2 coefficient in the notes/paper =#
 
     return model_t(D_DiffCoeff,C_HeatCapacity,a_albedo,SolarForcing,A_coeff,B_coeff)
@@ -154,14 +157,13 @@ function main()
 
     println("year","  ","GlobTemp")
     println(0,"  ",oldGlobTemp)
+    
     for year=1:maxYears
         GlobTemp = 0
         for time_step=1:NT
             UpdateRHS!(RHS, mesh, NT, time_step, Temp, model, LastRHS)
-
+                        
             Temp = Asparse\RHS
-
-
 
             GlobTemp += computeMeanTemp(Temp,mesh)
         end
@@ -176,7 +178,7 @@ function main()
         oldGlobTemp = GlobTemp
     end
 
-    return (;A,Asparse,RHS,GlobTemp,mesh,Temp)
+    return (;A,Asparse,RHS,GlobTemp,mesh,Temp,model)
 end
 ```
 Computes mean temperature in the globe at a specific time
@@ -230,8 +232,17 @@ function ComputeMatrix(mesh,NT,model)
             # Fill matrix A
             row_idx = index1d(i,j,nx)
             col_idx_c0 = row_idx
-            col_idx_c1 = row_idx - 1
-            col_idx_c3 = row_idx + 1
+            
+            if (i==1) # Periodic BC
+                col_idx_c1 = index1d(nx,j,nx)
+                col_idx_c3 = row_idx + 1
+            elseif (i==nx) # Periodic BC
+                col_idx_c1 = row_idx - 1
+                col_idx_c3 = index1d(1,j,nx)
+            else
+                col_idx_c1 = row_idx - 1
+                col_idx_c3 = row_idx + 1
+            end
             col_idx_c2 = row_idx - nx
             col_idx_c4 = row_idx + nx
 
@@ -287,11 +298,11 @@ function UpdateRHS!(RHS, mesh, NT, time_step, Temp, model, LastRHS)
         for i=1:nx
             row_idx = index1d(i,j,nx)
 
-            RHS[row_idx] = 4 * C_HeatCapacity[i,j] * Temp[row_idx] * NT  + LastRHS[row_idx] #- 2 * A_coeff
+            RHS[row_idx] = 4 * C_HeatCapacity[i,j] * Temp[row_idx] * NT  - LastRHS[row_idx] + SolarForcing[i,j,time_step] #- 2 * A_coeff
             if (time_step == 1)
-                RHS[row_idx] += SolarForcing[i,j,NT] + SolarForcing[i,j,time_step]
+                RHS[row_idx] += SolarForcing[i,j,NT]
             else
-                RHS[row_idx] += SolarForcing[i,j,time_step-1] + SolarForcing[i,j,time_step]
+                RHS[row_idx] += SolarForcing[i,j,time_step-1]
             end
         end
     end
