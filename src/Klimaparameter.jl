@@ -129,7 +129,7 @@ const CO2ppm = 315.0 # 1950 AD
     return SolarForcing
   end
 
- function calc_heat_capacities_C(geography, B)
+ function calc_heat_capacities(geography,B=2.15)
 
     # Depths 
     depth_atmos = 5000.         # meters
