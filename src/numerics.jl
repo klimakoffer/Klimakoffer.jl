@@ -2,6 +2,8 @@ using UnPack
 using SparseArrays
 using LinearAlgebra
 
+include("Klimaparameter.jl")
+
 #Mapping functions
 ##################
 function index2d(k,nx)
@@ -71,20 +73,30 @@ end
 function model_init(mesh,NT)
     @unpack nx,ny = mesh
 
-    D_DiffCoeff    = ones(Float64,nx,ny)
-    C_HeatCapacity = ones(Float64,nx,ny)
-    a_albedo       = zeros(Float64,nx,ny)
     SolarForcing   = ones(Float64,nx,ny,NT)
     
-    # Toy coefficients
+    # Constants
+    CO2ppm  = 315 # 1950
+    B_coeff = 2.15   #[W/m^2/°C]: sensitivity of the seasonal cycle and annual change in the forcing agents
+    A_coeff = calc_CO2_concentration_A(CO2ppm)
+
+    # Read parameters
+    geography = read_geography("The_World.dat",nx,ny)
+    a_albedo    = read_albedo("albedo.dat",nx,ny)
+    D_DiffCoeff = calc_diffusion_coefficients(geography,nx,ny)
+    C_HeatCapacity, tau_land, tau_snow, tau_sea_ice, tau_mixed_layer = calc_heat_capacities(geography,B_coeff)
+    
+
+    #= # Toy coefficients
+    C_HeatCapacity = ones(Float64,nx,ny)
+    a_albedo       = zeros(Float64,nx,ny)
+    D_DiffCoeff    = ones(Float64,nx,ny)
+
     D_DiffCoeff   .= 0.5
     C_HeatCapacity.= 10
     a_albedo      .= 0.5
     SolarForcing  .= 0.0
-
-    # Call fancy routines from the puppies team 
-    A_coeff = 210.3  #[W/m^2]   : CO2 coefficient in the notes/paper
-    B_coeff = 2.15   #[W/m^2/°C]: sensitivity of the seasonal cycle and annual change in the forcing agents
+    A_coeff = 210.3  #[W/m^2]   : CO2 coefficient in the notes/paper =#
 
     return model_t(D_DiffCoeff,C_HeatCapacity,a_albedo,SolarForcing,A_coeff,B_coeff)
 end
@@ -142,7 +154,7 @@ function main()
     println(0,"  ",oldGlobTemp)
     for year=1:maxYears
         GlobTemp = 0
-        for time_step=1:1 #NT
+        for time_step=1:NT
             UpdateRHS!(RHS, mesh, NT, time_step, Temp, model, LastRHS)
 
             Temp = Asparse\RHS
