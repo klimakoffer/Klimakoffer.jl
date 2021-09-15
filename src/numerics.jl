@@ -86,7 +86,9 @@ function model_init(mesh,NT)
     C_HeatCapacity, tau_land, tau_snow, tau_sea_ice, tau_mixed_layer = calc_heat_capacities(geography,B_coeff) # TODO: This is not the same as Fortran
 
     coalbedo = 1.0 .- a_albedo
-    SolarForcing = calc_solar_forcing(coalbedo,A_coeff); # TODO: Significant differences with fortran
+    
+    ECCR, XOBR, PERHR = orbital_params(1950)
+    SolarForcing = calc_solar_forcing(coalbedo,A_coeff,ecc=ECCR, ob=XOBR, per=PERHR); # TODO: Significant differences with fortran
     
     
     # Toy coefficients
@@ -134,6 +136,8 @@ function main()
     Temp = zeros(Float64,mesh.dof)
     Temp.= 5 # Magic initialization
 
+    AnnualTemp = zeros(Float64,mesh.dof,NT)
+
     #Read in parameters
     ###################
 
@@ -158,12 +162,24 @@ function main()
     println("year","  ","GlobTemp")
     println(0,"  ",oldGlobTemp)
     
+    @unpack dof = mesh
+
+    LUdec = lu(A)
+    L = sparse(LUdec.L)
+    U = sparse(LUdec.U)
+
     for year=1:maxYears
         GlobTemp = 0
         for time_step=1:NT
             UpdateRHS!(RHS, mesh, NT, time_step, Temp, model, LastRHS)
                         
-            Temp = Asparse\RHS
+            #Temp = Asparse\RHS
+            Temp = U\(L\RHS[LUdec.p])
+
+            Temp[1:nx] .= Temp[1]
+            Temp[dof-nx+1:dof] .= Temp[dof]
+
+            AnnualTemp[:,time_step] = Temp
 
             GlobTemp += computeMeanTemp(Temp,mesh)
         end
@@ -178,7 +194,7 @@ function main()
         oldGlobTemp = GlobTemp
     end
 
-    return (;A,Asparse,RHS,GlobTemp,mesh,Temp,model)
+    return (;A,Asparse,RHS,GlobTemp,mesh,AnnualTemp ,model)
 end
 ```
 Computes mean temperature in the globe at a specific time
