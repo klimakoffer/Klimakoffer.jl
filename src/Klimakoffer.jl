@@ -1,5 +1,9 @@
 module Klimakoffer
 
+include("Klimaparameter.jl")
+
+export calc_CO2_concentration_A, calc_heat_capacities_C, calc_diffusion_coefficients, calc_diffusion_coefficients_poles, read_albedo, read_world
+
 export answer, Mesh
 
 """

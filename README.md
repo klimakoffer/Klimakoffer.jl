@@ -46,6 +46,7 @@ There is not much there yet either, but
 Klimakoffer is maintained by
 [Gregor Gassner](https://www.mi.uni-koeln.de/NumSim/gassner),
 [Johannes Markert](https://www.mi.uni-koeln.de/NumSim/markert),
+[Christof Czernik](https://www.mi.uni-koeln.de/NumSim/christof-czernik),
 [Andrés Rueda-Ramírez](https://www.mi.uni-koeln.de/NumSim/dr-andres-rueda-ramirez),
 and
 [Michael Schlottke-Lakemper](https://www.mi.uni-koeln.de/NumSim/schlottke-lakemper)
