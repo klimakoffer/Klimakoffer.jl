@@ -76,7 +76,7 @@ function model_init(mesh,NT)
     # Constants
     CO2ppm  = 315 # 1950
     B_coeff = 2.15   #[W/m^2/°C]: sensitivity of the seasonal cycle and annual change in the forcing agents
-    A_coeff = calc_CO2_concentration_A(CO2ppm)
+    A_coeff = calc_CO2_concentration(CO2ppm)
 
     # Read parameters
     geography = read_geography("The_World.dat",nx,ny)
