@@ -1,4 +1,18 @@
-  function calc_CO2_concentration_A(CO2ppm)
+const Solar_Constant = 1371.685     # 100%  
+# const Solar_Constant = 1331.685   # 3% less   
+# const Solar_Constant = 1316.685   # 4%   
+# const Solar_Constant = 1344.685   # 2%   
+# const Solar_Constant = 1357.685   # 1%   
+
+const CO2ppm = 315.0 # 1950 AD
+
+# !CO2ppm=315.0 !9kaBP
+# !initial_year=-9000
+# !CO2ppm=315.0 !21kaBP
+# !initial_year=-21000
+
+
+  function calc_CO2_concentration_A(CO2ppm=CO2ppm)
 
     # Define base values CO2_Base and A_Base
     CO2_Base = 315.0
@@ -10,8 +24,112 @@
     return A
   end
 
+  function insolation(dt, ob, ecc, per, nt, nlat, siny, cosy, tany, S0)
 
-  function calc_heat_capacities_C(geography, B)
+    eccfac = 1.0 - ecc^2
+    rzero  = (2.0*pi)/eccfac^1.5
+
+    #  Solve the orbital equation for lambda as a function of time with
+    #  a fourth-order Runge-Kutta method
+    lambda = zeros(Float64,nt+1)
+    solar = zeros(Float64,nlat,nt)
+
+    for n in 2:nt+1
+      nu = lambda[n-1] - per
+      t1 = dt*(rzero*(1.0 - ecc * cos(nu))^2)
+      t2 = dt*(rzero*(1.0 - ecc * cos(nu+0.5*t1))^2)
+      t3 = dt*(rzero*(1.0 - ecc * cos(nu+0.5*t2))^2)
+      t4 = dt*(rzero*(1.0 - ecc * cos(nu + t3))^2)
+      lambda[n] = lambda[n-1] + (t1 + 2.0*t2 + 2.0*t3 + t4)/6.0
+    end
+
+    #  Compute the average daily solar irradiance as a function of
+    #  latitude and longitude (time)
+    for n in 1:nt
+      nu = lambda[n] - per
+      rhofac = ((1.0- ecc*cos(nu))/eccfac)^2
+      sindec = sin(ob)*sin(lambda[n])
+      cosdec = sqrt(1.0-sindec^2)
+      tandec = sindec/cosdec
+      for j in 1:nlat
+        z = -tany[j]*tandec
+        if z >= 1.0    # polar latitudes when there is no sunrise (winter)
+          solar[j,n] = 0.0
+        else
+          if z <= -1.0                # when there is no sunset (summer)
+            solar[j,n] = rhofac * S0[n] * siny[j] * sindec
+          else
+            Hzero = acos(z)
+            solar[j,n] = rhofac/pi*S0[n]*(Hzero*siny[j]*sindec+cosy[j]*cosdec*sin(Hzero))
+          end
+        end
+      end
+    end
+    return lambda, solar
+  end
+
+    # 0, .false., S0, .false., Pcoalbedo, A, ecc, ob, per, SF
+
+    # orbital parameters of 1950 AD
+    # ecc = 0.016740             
+    # ob  = 0.409253
+    # per = 1.783037  
+
+  function solar_forcing(Pcoalbedo, A, yr=0, Solar_Cycle=false, S0=Solar_Constant, Orbital=false, ecc=0.016740, ob=0.409253, per=1.783037)
+    # Calculate the sin, cos, and tan of the latitudes of Earth from the
+    # colatitudes, calculate the insolation
+
+    nlatitude   = 65
+    nlongitude  = 128
+    ntimesteps  = 48
+
+    dy = pi/(nlatitude-1.0)
+    dt = 1.0 / ntimesteps
+
+    siny = zeros(Float64,nlatitude)
+    cosy = zeros(Float64,nlatitude)
+    tany = zeros(Float64,nlatitude)
+
+    if yr == 0
+      for j in 1:nlatitude
+        lat = pi/2.0 - dy*(j-1)    # latitude in radians
+        siny[j] = sin(lat)
+        if j == 1
+          cosy[j] = 0.0
+          tany[j] = 1000.0
+        elseif j == nlatitude
+          cosy[j] = 0.0
+          tany[j] = -1000.0
+        else
+          cosy[j] = cos(lat)
+          tany[j] = tan(lat)
+        end
+      end
+      lambda, solar = insolation(dt, ob, ecc, per, ntimesteps, nlatitude, siny, cosy, tany, S0)
+    elseif yr > 0 && (Solar_Cycle || Orbital)
+      lambda, solar = insolation(dt, ob, ecc, per, ntimesteps, nlatitude, siny, cosy, tany, S0)
+    end
+
+    for j in 1:nlatitude
+      SUM=0.0
+      for ts in 1:ntimesteps
+        SUM=SUM+solar[j,ts]
+      end
+    end
+
+    SolarForcing = zeros(Float64,nlongitude,nlatitude,ntimesteps)
+    # calcualte the seasonal forcing
+    for ts in 1:ntimesteps
+      for j in 1:nlatitude
+        for i in 1:nlongitude
+          SolarForcing[i,j,ts] = solar[j,ts]*Pcoalbedo[i,j,ts] - A
+        end
+      end
+    end
+    return SolarForcing
+  end
+
+ function calc_heat_capacities_C(geography, B)
 
     # Depths 
     depth_atmos = 5000.         # meters
@@ -67,11 +185,11 @@
     tau_mixed_layer = (C_mixed_layer + C_atmos)/B   
 
     # define heatcap
-    heatcap = zeros(size(geography,2),size(geography,1))
+    heatcap = zeros(size(geography,1),size(geography,2))
 
     # Assign the correct value of the heat capacity of the columns
-    for j in 1:size(geography,1)
-      for i in 1:size(geography,2)
+    for j in 1:size(geography,2)
+      for i in 1:size(geography,1)
         geo  = geography[i,j]
         if geo == 1                            # land
           heatcap[i,j] = C_soil + C_atmos  
@@ -116,7 +234,7 @@
 
         for i = 1:nlongitude
             let geo = geography[i,j]
-                if geo >= 5 && Geo <= 7 # oceans
+                if geo >= 5 && geo <= 7 # oceans
                    diffusion[i,j] = (Keq-Kocean)*colat + Kocean
                 else # land, sea ice, etc
                     if j <= j_equator # northern hemisphere
@@ -139,25 +257,25 @@
   #   mean_diffusion_north = sum(diffusion_north)
   #   mean_diffusion_south = sum(diffusion_south)
 
-  function calc_diffusion_coefficients_poles(diffusion,nlongitude=128,nlatitude=65)
+  ## function calc_diffusion_coefficients_poles(diffusion,nlongitude=128,nlatitude=65)
 
-    # Fractional areas for the poles
-    angle  = pi/real(nlatitude-1)
-    area_1 = 0.5*(1.0 - cos(0.5*angle))
-    area_2 = sin(0.5*angle)*sin(angle)/float(nlongitude)
+  ##   # Fractional areas for the poles
+  ##   angle  = pi/real(nlatitude-1)
+  ##   area_1 = 0.5*(1.0 - cos(0.5*angle))
+  ##   area_2 = sin(0.5*angle)*sin(angle)/float(nlongitude)
 
-    total_area = area_1 + area_2
+  ##   total_area = area_1 + area_2
 
-    diffusion_north = zeros(Float64,nlongitude)
-    diffusion_south = zeros(Float64,nlongitude)
+  ##   diffusion_north = zeros(Float64,nlongitude)
+  ##   diffusion_south = zeros(Float64,nlongitude)
 
-    for i = 1:nlongitude
-        diffusion_north[i] = (area_1*diffusion[1,        1] + area_2*diffusion[i,          2])/total_area
-        diffusion_south[i] = (area_1*diffusion[1,nlatitude] + area_2*diffusion[i,nlatitude-1])/total_area
-    end
+  ##   for i = 1:nlongitude
+  ##       diffusion_north[i] = (area_1*diffusion[1,        1] + area_2*diffusion[i,          2])/total_area
+  ##       diffusion_south[i] = (area_1*diffusion[1,nlatitude] + area_2*diffusion[i,nlatitude-1])/total_area
+  ##   end
 
-    return diffusion_north,diffusion_south
-  end
+  ##   return diffusion_north,diffusion_south
+  ## end
 
 
   function read_albedo(filepath="albedo.dat",nlongitude=128,nlatitude=65)
@@ -172,7 +290,7 @@
   end
 
  
-  function read_world(filepath="The_World.dat",nlongitude=128,nlatitude=65)
+  function read_geography(filepath="The_World.dat",nlongitude=128,nlatitude=65)
     result = zeros(Int8,nlongitude,nlatitude)
     open(filepath) do fh
         for lat = 1:nlatitude
