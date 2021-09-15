@@ -11,8 +11,7 @@ const CO2ppm = 315.0 # 1950 AD
 # !CO2ppm=315.0 !21kaBP
 # !initial_year=-21000
 
-
-  function calc_CO2_concentration_A(CO2ppm=CO2ppm)
+  function calc_CO2_concentration(CO2ppm=CO2ppm)
 
     # Define base values CO2_Base and A_Base
     CO2_Base = 315.0
@@ -24,7 +23,8 @@ const CO2ppm = 315.0 # 1950 AD
     return A
   end
 
-  function insolation(dt, ob, ecc, per, nt, nlat, siny, cosy, tany, S0)
+  # auxiliar function of calc_solar_forcing
+  function _calc_insolation(dt, ob, ecc, per, nt, nlat, siny, cosy, tany, S0)
 
     eccfac = 1.0 - ecc^2
     rzero  = (2.0*pi)/eccfac^1.5
@@ -45,6 +45,7 @@ const CO2ppm = 315.0 # 1950 AD
 
     #  Compute the average daily solar irradiance as a function of
     #  latitude and longitude (time)
+
     for n in 1:nt
       nu = lambda[n] - per
       rhofac = ((1.0- ecc*cos(nu))/eccfac)^2
@@ -57,25 +58,25 @@ const CO2ppm = 315.0 # 1950 AD
           solar[j,n] = 0.0
         else
           if z <= -1.0                # when there is no sunset (summer)
-            solar[j,n] = rhofac * S0[n] * siny[j] * sindec
+            solar[j,n] = rhofac * S0 * siny[j] * sindec
           else
             Hzero = acos(z)
-            solar[j,n] = rhofac/pi*S0[n]*(Hzero*siny[j]*sindec+cosy[j]*cosdec*sin(Hzero))
+            solar[j,n] = rhofac/pi*S0*(Hzero*siny[j]*sindec+cosy[j]*cosdec*sin(Hzero))
           end
         end
       end
     end
+
     return lambda, solar
   end
 
-    # 0, .false., S0, .false., Pcoalbedo, A, ecc, ob, per, SF
 
     # orbital parameters of 1950 AD
     # ecc = 0.016740             
     # ob  = 0.409253
     # per = 1.783037  
 
-  function solar_forcing(Pcoalbedo, A, yr=0, Solar_Cycle=false, S0=Solar_Constant, Orbital=false, ecc=0.016740, ob=0.409253, per=1.783037)
+  function calc_solar_forcing(Pcoalbedo, A,yr=0; Solar_Cycle=false, S0=Solar_Constant, Orbital=false, ecc=0.016740, ob=0.409253, per=1.783037)
     # Calculate the sin, cos, and tan of the latitudes of Earth from the
     # colatitudes, calculate the insolation
 
@@ -105,13 +106,13 @@ const CO2ppm = 315.0 # 1950 AD
           tany[j] = tan(lat)
         end
       end
-      lambda, solar = insolation(dt, ob, ecc, per, ntimesteps, nlatitude, siny, cosy, tany, S0)
+      lambda, solar = _calc_insolation(dt, ob, ecc, per, ntimesteps, nlatitude, siny, cosy, tany, S0)
     elseif yr > 0 && (Solar_Cycle || Orbital)
-      lambda, solar = insolation(dt, ob, ecc, per, ntimesteps, nlatitude, siny, cosy, tany, S0)
+      lambda, solar = _calc_insolation(dt, ob, ecc, per, ntimesteps, nlatitude, siny, cosy, tany, S0)
     end
 
     for j in 1:nlatitude
-      SUM=0.0
+      SUM = 0.0
       for ts in 1:ntimesteps
         SUM=SUM+solar[j,ts]
       end
@@ -122,11 +123,12 @@ const CO2ppm = 315.0 # 1950 AD
     for ts in 1:ntimesteps
       for j in 1:nlatitude
         for i in 1:nlongitude
-          SolarForcing[i,j,ts] = solar[j,ts]*Pcoalbedo[i,j,ts] - A
+          SolarForcing[i,j,ts] = solar[j,ts]*Pcoalbedo[i,j] - A
         end
       end
     end
     return SolarForcing
+
   end
 
  function calc_heat_capacities(geography,B=2.15)
@@ -289,7 +291,6 @@ const CO2ppm = 315.0 # 1950 AD
     return result
   end
 
- 
   function read_geography(filepath="The_World.dat",nlongitude=128,nlatitude=65)
     result = zeros(Int8,nlongitude,nlatitude)
     open(filepath) do fh
