@@ -1,4 +1,6 @@
 using UnPack
+using SparseArrays
+using LinearAlgebra
 
 #Mapping functions
 ##################
@@ -71,8 +73,14 @@ function model_init(mesh,NT)
 
     D_DiffCoeff    = ones(Float64,nx,ny)
     C_HeatCapacity = ones(Float64,nx,ny)
-    a_albedo       = ones(Float64,nx,ny)
+    a_albedo       = zeros(Float64,nx,ny)
     SolarForcing   = ones(Float64,nx,ny,NT)
+    
+    # Toy coefficients
+    D_DiffCoeff   .= 0.5
+    C_HeatCapacity.= 10
+    a_albedo      .= 0.5
+    SolarForcing  .= 0.0
 
     # Call fancy routines from the puppies team 
     A_coeff = 210.3  #[W/m^2]   : CO2 coefficient in the notes/paper
@@ -84,9 +92,15 @@ end
 function main()
     #Input
     ######
-    nx = 16
+    nx = 128
     NT = 48 # Number of time-steps per year
+    maxYears = 100
 
+    #<DEBUG
+    #nx=8
+    #NT=48
+    #maxYears=1
+    #DEBUG>
     #Initial definitions
     ####################
 
@@ -113,14 +127,63 @@ function main()
     #####################
 
     A = ComputeMatrix(mesh,NT,model)
+    Asparse=sparse(A)
+    # TODO: deallocate A
 
-    RHS     = zeros(Float64,mesh.dof)
+    RHS     = zeros(Float64,mesh.dof)   # TODO: The EBM Fortran code initializes the RHS to zero... Maybe we want to initialize it differently
     LastRHS = zeros(Float64,mesh.dof)
 
-    time_step = 2
-    UpdateRHS!(RHS, mesh, NT, time_step, Temp, model, LastRHS)
+    RelError = 2e-5
 
-    return (;A,RHS)
+    oldGlobTemp = computeMeanTemp(Temp,mesh)
+    GlobTemp = 0
+
+    println("year","  ","GlobTemp")
+    println(0,"  ",oldGlobTemp)
+    for year=1:maxYears
+        GlobTemp = 0
+        for time_step=1:1 #NT
+            UpdateRHS!(RHS, mesh, NT, time_step, Temp, model, LastRHS)
+
+            Temp = Asparse\RHS
+
+
+
+            GlobTemp += computeMeanTemp(Temp,mesh)
+        end
+        GlobTemp = GlobTemp/NT
+        println(year,"  ",GlobTemp)
+        
+        if (abs(GlobTemp-oldGlobTemp)<RelError)
+            println("EQUILIBRIUM REACHED!")
+            break
+        end
+        
+        oldGlobTemp = GlobTemp
+    end
+
+    return (;A,Asparse,RHS,GlobTemp,mesh,Temp)
+end
+```
+Computes mean temperature in the globe at a specific time
+```
+function computeMeanTemp(Temp,mesh)
+    @unpack nx,ny,area,dof = mesh
+
+    MeanTemp = 0.0
+    
+    # Contribution of inner points
+    for j=2:ny-1
+        for i=1:nx
+            row_idx = index1d(i,j,nx)
+            MeanTemp += area[j] * Temp[row_idx]
+        end
+    end
+
+    # Poles
+    MeanTemp += area[1] * (Temp[1] + Temp[dof]) 
+
+    return MeanTemp
 end
 
 function ComputeMatrix(mesh,NT,model)
@@ -203,6 +266,7 @@ function ComputeMatrix(mesh,NT,model)
 end
 
 function UpdateRHS!(RHS, mesh, NT, time_step, Temp, model, LastRHS)
+    # ACHTUNG!!: Here we assume that all nodes at each pole have the same model parameters
     @unpack nx,ny = mesh
     @unpack C_HeatCapacity, SolarForcing, A_coeff = model
     for j=1:ny
