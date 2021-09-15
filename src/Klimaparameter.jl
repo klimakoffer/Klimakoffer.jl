@@ -160,13 +160,12 @@
   end
 
 
-
   function read_albedo(filepath="albedo.dat",nlongitude=128,nlatitude=65)
-    result = zeros(Float64,nlatitude,nlongitude)
+    result = zeros(Float64,nlongitude,nlatitude)
     open(filepath) do fh
         for lat = 1:nlatitude
             if eof(fh) break end
-            result[lat,:] = parse.(Float64,split(strip(readline(fh) ),r"\s+"))
+            result[:,lat] = parse.(Float64,split(strip(readline(fh) ),r"\s+"))
         end
     end
     return result
@@ -174,14 +173,12 @@
 
  
   function read_world(filepath="The_World.dat",nlongitude=128,nlatitude=65)
-    result = zeros(Float64,nlatitude,nlongitude)
+    result = zeros(Int8,nlongitude,nlatitude)
     open(filepath) do fh
         for lat = 1:nlatitude
             if eof(fh) break end
-            result[lat,:] = parse.(Int8,split(strip(readline(fh) ),r""))
+            result[:,lat] = parse.(Int8,split(strip(readline(fh) ),r""))
         end
     end
     return result
   end
-
-
