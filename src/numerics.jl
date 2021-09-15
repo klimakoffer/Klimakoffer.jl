@@ -72,8 +72,6 @@ end
 
 function model_init(mesh,NT)
     @unpack nx,ny = mesh
-
-    SolarForcing   = ones(Float64,nx,ny,NT)
     
     # Constants
     CO2ppm  = 315 # 1950
@@ -85,12 +83,16 @@ function model_init(mesh,NT)
     a_albedo    = read_albedo("albedo.dat",nx,ny)
     D_DiffCoeff = calc_diffusion_coefficients(geography,nx,ny)
     C_HeatCapacity, tau_land, tau_snow, tau_sea_ice, tau_mixed_layer = calc_heat_capacities(geography,B_coeff)
+
+    coalbedo = 1.0 .- a_albedo
+    SolarForcing = calc_solar_forcing(coalbedo,A_coeff);
     
 
     #= # Toy coefficients
     C_HeatCapacity = ones(Float64,nx,ny)
     a_albedo       = zeros(Float64,nx,ny)
     D_DiffCoeff    = ones(Float64,nx,ny)
+    SolarForcing   = ones(Float64,nx,ny,NT)
 
     D_DiffCoeff   .= 0.5
     C_HeatCapacity.= 10
@@ -285,7 +287,7 @@ function UpdateRHS!(RHS, mesh, NT, time_step, Temp, model, LastRHS)
         for i=1:nx
             row_idx = index1d(i,j,nx)
 
-            RHS[row_idx] = 4 * C_HeatCapacity[i,j] * Temp[row_idx] * NT  + LastRHS[row_idx] - 2 * A_coeff
+            RHS[row_idx] = 4 * C_HeatCapacity[i,j] * Temp[row_idx] * NT  + LastRHS[row_idx] #- 2 * A_coeff
             if (time_step == 1)
                 RHS[row_idx] += SolarForcing[i,j,NT] + SolarForcing[i,j,time_step]
             else
