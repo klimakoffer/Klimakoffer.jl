@@ -75,7 +75,6 @@ function compute_evolution!(discretization, co2_concentration_yearly, mean_tempe
     
     if verbose
       println("year","  ","Average Temperature")
-      println(year_start,"  ",mean_temperature_yearly[1])
     end
     
     max_years = size(co2_concentration_yearly,1)
@@ -97,7 +96,7 @@ function compute_evolution!(discretization, co2_concentration_yearly, mean_tempe
         average_temperature = average_temperature/num_steps_year
         mean_temperature_yearly[year] = average_temperature
         if verbose
-          println(year_start+year,"  ",average_temperature)
+          println(year_start+year-1,"  ",average_temperature)
         end
     end
 end
