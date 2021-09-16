@@ -63,6 +63,44 @@ function compute_equilibrium!(discretization; co2_concentration = 315.0, max_yea
     return average_temperature
 end
 
+"""
+    compute_evolution!!(...)
+
+* rel_error is the tolerance for global temperature equilibrium (default is 2e-5).
+* max_years is the maximum number of annual cycles to be computed when searching for equilibrium
+"""
+function compute_evolution!(discretization, co2_concentration_yearly, mean_temperature_yearly, year_start; verbose=true)
+    @unpack mesh, model, low_mat, upp_mat, perm_array, num_steps_year, annual_temperature, rhs, last_rhs  = discretization
+    @unpack nx, dof = mesh
+    
+    if verbose
+      println("year","  ","Average Temperature")
+      println(year_start,"  ",mean_temperature_yearly[1])
+    end
+    
+    max_years = size(co2_concentration_yearly,1)
+
+    for year in 1:max_years
+        radiative_cooling_co2 = calc_radiative_cooling_co2(co2_concentration_yearly[year])
+        average_temperature = 0.0
+        for time_step in 1:num_steps_year
+            old_time_step = (time_step == 1) ? num_steps_year : time_step - 1
+            update_rhs!(rhs, mesh, num_steps_year, time_step, view(annual_temperature, :, old_time_step), model, radiative_cooling_co2, last_rhs)
+                        
+            annual_temperature[:, time_step] = upp_mat\(low_mat\rhs[perm_array])
+
+            annual_temperature[1:nx, time_step] .= annual_temperature[1, time_step]
+            annual_temperature[dof-nx+1:dof, time_step] .= annual_temperature[dof, time_step]
+
+            average_temperature += area_weighted_average(view(annual_temperature, :, time_step), mesh)
+        end
+        average_temperature = average_temperature/num_steps_year
+        mean_temperature_yearly[year] = average_temperature
+        if verbose
+          println(year_start+year,"  ",average_temperature)
+        end
+    end
+end
 
 
 """

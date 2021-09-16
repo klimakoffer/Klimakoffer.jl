@@ -5,7 +5,7 @@ using SparseArrays: sparse
 using UnPack: @unpack
 using Requires: @require
 
-export Mesh, Model, Discretization, compute_equilibrium!
+export Mesh, Model, Discretization, compute_equilibrium!, compute_evolution!
 
 function __init__()
     # Enable features that depend on the availability of the Plots package
