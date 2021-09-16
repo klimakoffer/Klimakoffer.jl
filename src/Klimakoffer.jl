@@ -1,10 +1,12 @@
 module Klimakoffer
 
-include("Klimaparameter.jl")
+using LinearAlgebra: \, lu
+using SparseArrays: sparse
+using UnPack: @unpack
 
 export calc_CO2_concentration_A, calc_heat_capacities_C, calc_diffusion_coefficients, calc_diffusion_coefficients_poles, orbital_params, read_albedo, read_world
 
-export answer, Mesh
+export answer, main
 
 """
     answer()
@@ -16,5 +18,7 @@ answer() = 42
 
 # Include additional files
 include("mesh.jl")
+include("model.jl")
+include("numerics.jl")
 
 end # module

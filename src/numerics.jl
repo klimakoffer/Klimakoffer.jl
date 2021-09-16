@@ -1,8 +1,3 @@
-using UnPack
-using SparseArrays
-using LinearAlgebra
-
-include("Klimaparameter.jl")
 
 #Mapping functions
 ##################
@@ -15,97 +10,6 @@ end
 function index1d(i,j,nx)
     # TODO: add consistency check with ny?
     return i+(j-1)*nx
-end
-
-struct mesh_t
-    nx::Int         # Number of DOFs in x (Longitude)
-    ny::Int         # Number of DOFs in y (Latitude)
-    dof::Int
-    h::Float64
-    sh2::Float64
-    geom::Float64
-    csc2::Array{Float64,1}
-    cot::Array{Float64,1}
-    area::Array{Float64,1}
-end
-
-function mesh_init(nx::Int)
-    ny = Int(nx/2+1) # 65
-    dof = nx*ny
-
-    h = pi / (ny-1) # Uniform grid size in radians
-    sh2 = 1 / h^2
-
-    # Trigonometric definitions for inner degrees of freedom
-    csc2 = zeros(Float64,ny) # csc^2(theta), where theta is the colatitude angle (from the pole)
-    cot  = zeros(Float64,ny) #   cot(theta), where theta is the colatitude angle (from the pole)
-    for j=2:ny-1
-        theta = h*(j-1)
-        sintheta = sin(theta)
-        csc2[j] = 1/sintheta^2
-        cot[j] = cos(theta)/sintheta
-    end
-
-    area = zeros(Float64,ny) # Fractional area for the cells depending on latitude
-    # Grid point fractional area for inner DOFs
-    for j=2:ny-1
-        area[j] =  sin(0.5*h)*sin(h*(j-1))/nx
-    end
-
-    # Fractional area for the poles
-    area[1]  = 0.5*(1 - cos(0.5*h))
-    area[ny] = area[1]
-
-    geom = sin(0.5*h)/area[1]
-
-    return mesh_t(nx,ny,dof,h,sh2,geom,csc2,cot,area)
-end
-
-struct model_t
-    D_DiffCoeff::Array{Float64,2}
-    C_HeatCapacity::Array{Float64,2}
-    a_albedo::Array{Float64,2}
-    SolarForcing::Array{Float64,3}
-    A_coeff::Float64
-    B_coeff::Float64
-end
-
-function model_init(mesh,NT)
-    @unpack nx,ny = mesh
-    
-    # Constants
-    CO2ppm  = 315 # 1950
-    B_coeff = 2.15   #[W/m^2/°C]: sensitivity of the seasonal cycle and annual change in the forcing agents
-    
-    # Read parameters
-    
-    A_coeff = calc_CO2_concentration(CO2ppm)
-    geography = read_geography("The_World.dat",nx,ny)
-    a_albedo    = read_albedo("albedo.dat",nx,ny)
-    D_DiffCoeff = calc_diffusion_coefficients(geography,nx,ny)
-    C_HeatCapacity, tau_land, tau_snow, tau_sea_ice, tau_mixed_layer = calc_heat_capacities(geography,B_coeff) # TODO: This is not the same as Fortran
-
-    coalbedo = 1.0 .- a_albedo
-    
-    ECCR, XOBR, PERHR = orbital_params(1950)
-    SolarForcing = calc_solar_forcing(coalbedo,A_coeff,ecc=ECCR, ob=XOBR, per=PERHR); # TODO: Significant differences with fortran
-    
-    
-    # Toy coefficients
-    #= SolarForcing   = ones(Float64,nx,ny,NT)
-    SolarForcing  .= 0.0
-    C_HeatCapacity = ones(Float64,nx,ny)
-    C_HeatCapacity.= 1.0
-    
-    a_albedo       = zeros(Float64,nx,ny)
-    D_DiffCoeff    = ones(Float64,nx,ny)
-    D_DiffCoeff   .= 0.5
-    
-    a_albedo      .= 0.5
-    
-    A_coeff = 210.3  #[W/m^2]   : CO2 coefficient in the notes/paper =#
-
-    return model_t(D_DiffCoeff,C_HeatCapacity,a_albedo,SolarForcing,A_coeff,B_coeff)
 end
 
 function main()
@@ -196,9 +100,12 @@ function main()
 
     return (;A,Asparse,RHS,GlobTemp,mesh,AnnualTemp ,model)
 end
-```
+
+
+
+"""
 Computes mean temperature in the globe at a specific time
-```
+"""
 function computeMeanTemp(Temp,mesh)
     @unpack nx,ny,area,dof = mesh
 
