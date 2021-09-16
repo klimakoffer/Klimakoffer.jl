@@ -51,35 +51,28 @@ function main()
     # Assemble the matrix
     #####################
 
-    A = ComputeMatrix(mesh,NT,model)
-    Asparse=sparse(A)
-    # TODO: deallocate A
+    discretization = Discretization(mesh, model, NT)
+
 
     RHS     = zeros(Float64,mesh.dof)   # TODO: The EBM Fortran code initializes the RHS to zero... Maybe we want to initialize it differently
     LastRHS = zeros(Float64,mesh.dof)
 
     RelError = 2e-5
 
-    oldGlobTemp = computeMeanTemp(Temp,mesh)
-    GlobTemp = 0
+    GlobTemp = solve!(Temp, AnnualTemp, RHS, maxYears, discretization, LastRHS, RelError)
 
-    println("year","  ","GlobTemp")
-    println(0,"  ",oldGlobTemp)
-    
-    @unpack dof = mesh
-
-    LUdec = lu(A)
-    L = sparse(LUdec.L)
-    U = sparse(LUdec.U)
-
-    solve!(Temp, AnnualTemp, oldGlobTemp, RHS, maxYears, NT, mesh, model, LastRHS, L, U, LUdec.p, RelError)
-
-    return (;A,Asparse,RHS,GlobTemp,mesh,AnnualTemp ,model, Temp)
+    return (; RHS, GlobTemp, discretization, AnnualTemp, Temp)
 end
 
 
-function solve!(Temp, AnnualTemp, oldGlobTemp, RHS, maxYears, NT, mesh, model, LastRHS, L, U, p, RelError)
+function solve!(Temp, AnnualTemp, RHS, maxYears, discretization, LastRHS, RelError)
+    @unpack mesh, model, L, U, p, NT = discretization
     @unpack nx, dof = mesh
+
+    GlobTemp = oldGlobTemp = computeMeanTemp(Temp, mesh)
+
+    println("year","  ","GlobTemp")
+    println(0,"  ",oldGlobTemp)
 
     for year in 1:maxYears
         GlobTemp = 0.0
@@ -106,6 +99,8 @@ function solve!(Temp, AnnualTemp, oldGlobTemp, RHS, maxYears, NT, mesh, model, L
         
         oldGlobTemp = GlobTemp
     end
+
+    return GlobTemp
 end
 
 

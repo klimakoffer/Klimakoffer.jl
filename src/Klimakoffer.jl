@@ -9,6 +9,7 @@ export main
 # Include additional files
 include("mesh.jl")
 include("model.jl")
+include("discretization.jl")
 include("numerics.jl")
 
 end # module
