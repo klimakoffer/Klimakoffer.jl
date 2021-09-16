@@ -1,26 +1,26 @@
 
 struct Discretization{LType, UType, PType}
-  L::LType
-  U::UType
-  p::PType
-  NT::Int64
+  low_mat::LType                        # Lower triangular matrix of LU composition
+  upp_mat::UType                        # Upper triangular matrix of LU composition
+  perm_array::PType                     # Permutation array of LU composition
+  num_steps_year::Int64                 # Number of time steps per astronomical year
   mesh::Mesh
-  model::Model
-  AnnualTemp::Array{Float64, 2}
-  RHS::Vector{Float64}
-  LastRHS::Vector{Float64}
+  model::Model                          # Physical model
+  annual_temperature::Array{Float64, 2} # Annual temperature at every time step in an astronomical year
+  rhs::Vector{Float64}
+  last_rhs::Vector{Float64}
 end
 
 
-function Discretization(mesh, model, NT)
-    A = ComputeMatrix(mesh,NT,model)
-    LUdec = lu(A)
-    L = sparse(LUdec.L)
-    U = sparse(LUdec.U)
+function Discretization(mesh, model, num_steps_year)
+    mat = compute_matrix(mesh,num_steps_year,model)
+    lu_dec = lu(mat)
+    low_mat = sparse(lu_dec.L)
+    upp_mat = sparse(lu_dec.U)
 
-    AnnualTemp = fill(5.0, mesh.dof, NT) # Magic initialization
-    RHS     = zeros(mesh.dof)  # TODO: The EBM Fortran code initializes the RHS to zero... Maybe we want to initialize it differently
-    LastRHS = zeros(mesh.dof)
+    annual_temperature = fill(5.0, mesh.dof, num_steps_year) # Magic initialization
+    rhs     = zeros(mesh.dof)  # TODO: The EBM Fortran code initializes the RHS to zero... Maybe we want to initialize it differently
+    last_rhs = zeros(mesh.dof)
 
-    Discretization(L, U, LUdec.p, NT, mesh, model, AnnualTemp, RHS, LastRHS)
+    Discretization(low_mat, upp_mat, lu_dec.p, num_steps_year, mesh, model, annual_temperature, rhs, last_rhs)
 end
