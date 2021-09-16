@@ -24,3 +24,11 @@ function Discretization(mesh, model, num_steps_year)
 
     Discretization(low_mat, upp_mat, lu_dec.p, num_steps_year, mesh, model, annual_temperature, rhs, last_rhs)
 end
+
+Base.size(discretization::Discretization) = size(discretization.mesh)
+
+function Base.show(io::IO, discretization::Discretization)
+  nx, ny = size(discretization)
+  print(io, "Discretization() with ", nx, "×", ny, " degrees of freedom")
+end
+
