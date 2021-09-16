@@ -30,8 +30,8 @@ function model_init(mesh,NT)
     # Read parameters
     
     A_coeff = calc_CO2_concentration(CO2ppm)
-    geography = read_geography("The_World.dat",nx,ny)
-    a_albedo    = read_albedo("albedo.dat",nx,ny)
+    geography = read_geography(joinpath(@__DIR__, "..", "The_World.dat"),nx,ny)
+    a_albedo    = read_albedo(joinpath(@__DIR__, "..", "albedo.dat"),nx,ny)
     D_DiffCoeff = calc_diffusion_coefficients(geography,nx,ny)
     C_HeatCapacity, tau_land, tau_snow, tau_sea_ice, tau_mixed_layer = calc_heat_capacities(geography,B_coeff) # TODO: This is not the same as Fortran
 
