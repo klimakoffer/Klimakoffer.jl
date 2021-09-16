@@ -13,60 +13,28 @@ function index1d(i,j,nx)
 end
 
 function main()
-    #Input
-    ######
     nx = 128
     NT = 48 # Number of time-steps per year
-    maxYears = 100
 
-    #<DEBUG
-    #nx=8
-    #NT=48
-    #maxYears=1
-    #DEBUG>
-    #Initial definitions
-    ####################
-
-    #Time-discretization parameters
-    dt = 1/NT
-
-    #Mesh construction
     mesh = Mesh(nx)
 
-    #Static parameters
-    
-
-    #Solver variables 
-    Temp = zeros(Float64,mesh.dof)
-    Temp.= 5 # Magic initialization
-
-    AnnualTemp = zeros(Float64,mesh.dof,NT)
-
-    #Read in parameters
-    ###################
-
-    model = Model(mesh,NT)
-
-
-    # Assemble the matrix
-    #####################
+    model = Model(mesh, NT)
 
     discretization = Discretization(mesh, model, NT)
 
+    GlobTemp = compute_equilibrium!(discretization)
 
-    RHS     = zeros(Float64,mesh.dof)   # TODO: The EBM Fortran code initializes the RHS to zero... Maybe we want to initialize it differently
-    LastRHS = zeros(Float64,mesh.dof)
-
-    RelError = 2e-5
-
-    GlobTemp = solve!(Temp, AnnualTemp, RHS, maxYears, discretization, LastRHS, RelError)
-
-    return (; RHS, GlobTemp, discretization, AnnualTemp, Temp)
+    return (; GlobTemp, discretization)
 end
 
 
-function solve!(Temp, AnnualTemp, RHS, maxYears, discretization, LastRHS, RelError)
-    @unpack mesh, model, L, U, p, NT = discretization
+"""
+    compute_equilibrium!(...)
+
+RelError is the tolerance for global temperature equilibrium.
+"""
+function compute_equilibrium!(discretization; maxYears=100, RelError=2e-5)
+    @unpack mesh, model, L, U, p, NT, Temp, AnnualTemp, RHS, LastRHS  = discretization
     @unpack nx, dof = mesh
 
     GlobTemp = oldGlobTemp = computeMeanTemp(Temp, mesh)
