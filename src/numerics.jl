@@ -72,13 +72,22 @@ function main()
     L = sparse(LUdec.L)
     U = sparse(LUdec.U)
 
-    for year=1:maxYears
-        GlobTemp = 0
-        for time_step=1:NT
+    solve!(Temp, AnnualTemp, oldGlobTemp, RHS, maxYears, NT, mesh, model, LastRHS, L, U, LUdec.p, RelError)
+
+    return (;A,Asparse,RHS,GlobTemp,mesh,AnnualTemp ,model, Temp)
+end
+
+
+function solve!(Temp, AnnualTemp, oldGlobTemp, RHS, maxYears, NT, mesh, model, LastRHS, L, U, p, RelError)
+    @unpack nx, dof = mesh
+
+    for year in 1:maxYears
+        GlobTemp = 0.0
+        for time_step in 1:NT
             UpdateRHS!(RHS, mesh, NT, time_step, Temp, model, LastRHS)
                         
             #Temp = Asparse\RHS
-            Temp = U\(L\RHS[LUdec.p])
+            Temp .= U\(L\RHS[p])
 
             Temp[1:nx] .= Temp[1]
             Temp[dof-nx+1:dof] .= Temp[dof]
@@ -97,8 +106,6 @@ function main()
         
         oldGlobTemp = GlobTemp
     end
-
-    return (;A,Asparse,RHS,GlobTemp,mesh,AnnualTemp ,model)
 end
 
 
