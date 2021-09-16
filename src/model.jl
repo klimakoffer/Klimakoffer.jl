@@ -30,6 +30,15 @@ function Model(mesh, num_steps_year)
     
     return Model(diffusion_coeff,heat_capacity,albedo,solar_forcing,radiative_cooling_co2,radiative_cooling_feedback)
 end
+
+Base.size(model::Model) = size(model.heat_capacity)
+
+function Base.show(io::IO, model::Model)
+  nx, ny = size(model)
+  print(io, "Model() with ", nx, "×", ny, " degrees of freedom")
+end
+
+
 """
 calc_radiative_cooling_co2()
 Computes the CO2 parameter depending on the CO2 concentration

@@ -39,3 +39,10 @@ function Mesh(nx=128)
 
     return Mesh(nx,ny,dof,h,geom,csc2,cot,area)
 end
+
+Base.size(mesh::Mesh) = (mesh.nx, mesh.ny)
+
+function Base.show(io::IO, mesh::Mesh)
+  nx, ny = size(mesh)
+  print(io, "Mesh() with ", nx, "×", ny, " degrees of freedom")
+end
