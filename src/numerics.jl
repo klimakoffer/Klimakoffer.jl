@@ -1,29 +1,15 @@
 
 #Mapping functions
 ##################
-function index2d(k,nx)
-    j = floor(Int,(k-1)/nx)+1
-    # TODO: add consistency check with ny?
-    return k-(j-1)*nx,j 
-end
+# function index2d(k,nx)
+#     j = floor(Int,(k-1)/nx)+1
+#     # TODO: add consistency check with ny?
+#     return k-(j-1)*nx,j 
+# end
 
 function index1d(i,j,nx)
     # TODO: add consistency check with ny?
     return i+(j-1)*nx
-end
-
-function main()
-    NT = 48 # Number of time-steps per year
-
-    mesh = Mesh()
-
-    model = Model(mesh, NT)
-
-    discretization = Discretization(mesh, model, NT)
-
-    GlobTemp = compute_equilibrium!(discretization)
-
-    return (; GlobTemp, discretization)
 end
 
 

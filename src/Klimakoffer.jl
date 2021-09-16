@@ -4,7 +4,7 @@ using LinearAlgebra: \, lu
 using SparseArrays: sparse
 using UnPack: @unpack
 
-export main
+export Mesh, Model, Discretization, compute_equilibrium!
 
 # Include additional files
 include("mesh.jl")
