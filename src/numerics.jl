@@ -19,14 +19,16 @@ end
 * rel_error is the tolerance for global temperature equilibrium (default is 2e-5).
 * max_years is the maximum number of annual cycles to be computed when searching for equilibrium
 """
-function compute_equilibrium!(discretization; max_years=100, rel_error=2e-5)
+function compute_equilibrium!(discretization; max_years=100, rel_error=2e-5, verbose=true)
     @unpack mesh, model, low_mat, upp_mat, perm_array, num_steps_year, annual_temperature, rhs, last_rhs  = discretization
     @unpack nx, dof = mesh
 
     average_temperature = average_temperature_old = area_weighted_average(view(annual_temperature, :, num_steps_year), mesh)
 
-    println("year","  ","Average Temperature")
-    println(0,"  ",average_temperature_old)
+    if verbose
+      println("year","  ","Average Temperature")
+      println(0,"  ",average_temperature_old)
+    end
 
     for year in 1:max_years
         average_temperature = 0.0
@@ -42,10 +44,14 @@ function compute_equilibrium!(discretization; max_years=100, rel_error=2e-5)
             average_temperature += area_weighted_average(view(annual_temperature, :, time_step), mesh)
         end
         average_temperature = average_temperature/num_steps_year
-        println(year,"  ",average_temperature)
+        if verbose
+          println(year,"  ",average_temperature)
+        end
         
         if (abs(average_temperature-average_temperature_old)<rel_error)
-            println("EQUILIBRIUM REACHED!")
+            if verbose
+              println("EQUILIBRIUM REACHED!")
+            end
             break
         end
         
