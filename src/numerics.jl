@@ -19,9 +19,11 @@ end
 * rel_error is the tolerance for global temperature equilibrium (default is 2e-5).
 * max_years is the maximum number of annual cycles to be computed when searching for equilibrium
 """
-function compute_equilibrium!(discretization; max_years=100, rel_error=2e-5, verbose=true)
+function compute_equilibrium!(discretization; co2_concentration = 315.0, max_years=100, rel_error=2e-5, verbose=true)
     @unpack mesh, model, low_mat, upp_mat, perm_array, num_steps_year, annual_temperature, rhs, last_rhs  = discretization
     @unpack nx, dof = mesh
+    
+    radiative_cooling_co2 = calc_radiative_cooling_co2(co2_concentration)
 
     average_temperature = average_temperature_old = area_weighted_average(view(annual_temperature, :, num_steps_year), mesh)
 
@@ -34,7 +36,7 @@ function compute_equilibrium!(discretization; max_years=100, rel_error=2e-5, ver
         average_temperature = 0.0
         for time_step in 1:num_steps_year
             old_time_step = (time_step == 1) ? num_steps_year : time_step - 1
-            update_rhs!(rhs, mesh, num_steps_year, time_step, view(annual_temperature, :, old_time_step), model, last_rhs)
+            update_rhs!(rhs, mesh, num_steps_year, time_step, view(annual_temperature, :, old_time_step), model, radiative_cooling_co2, last_rhs)
                         
             annual_temperature[:, time_step] = upp_mat\(low_mat\rhs[perm_array])
 
@@ -174,14 +176,14 @@ function compute_matrix(mesh,num_steps_year,model)
     return matrix
 end
 
-function update_rhs!(rhs, mesh, num_steps_year, time_step, temperature, model, last_rhs)
+function update_rhs!(rhs, mesh, num_steps_year, time_step, temperature, model, radiative_cooling_co2, last_rhs)
     @unpack nx,ny = mesh
-    @unpack heat_capacity, solar_forcing, radiative_cooling_co2 = model
+    @unpack heat_capacity, solar_forcing = model
     for j=1:ny
         for i=1:nx
             row_idx = index1d(i,j,nx)
 
-            rhs[row_idx] = 4 * heat_capacity[i,j] * temperature[row_idx] * num_steps_year  - last_rhs[row_idx] + solar_forcing[i,j,time_step] #- 2 * radiative_cooling_co2
+            rhs[row_idx] = 4 * heat_capacity[i,j] * temperature[row_idx] * num_steps_year  - last_rhs[row_idx] + solar_forcing[i,j,time_step] - 2 * radiative_cooling_co2
             if (time_step == 1)
                 rhs[row_idx] += solar_forcing[i,j,num_steps_year]
             else
