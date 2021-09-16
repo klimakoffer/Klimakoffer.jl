@@ -33,10 +33,10 @@ end
 RelError is the tolerance for global temperature equilibrium.
 """
 function compute_equilibrium!(discretization; maxYears=100, RelError=2e-5)
-    @unpack mesh, model, L, U, p, NT, Temp, AnnualTemp, RHS, LastRHS  = discretization
+    @unpack mesh, model, L, U, p, NT, AnnualTemp, RHS, LastRHS  = discretization
     @unpack nx, dof = mesh
 
-    GlobTemp = oldGlobTemp = computeMeanTemp(Temp, mesh)
+    GlobTemp = oldGlobTemp = computeMeanTemp(view(AnnualTemp, :, NT), mesh)
 
     println("year","  ","GlobTemp")
     println(0,"  ",oldGlobTemp)
@@ -44,17 +44,15 @@ function compute_equilibrium!(discretization; maxYears=100, RelError=2e-5)
     for year in 1:maxYears
         GlobTemp = 0.0
         for time_step in 1:NT
-            UpdateRHS!(RHS, mesh, NT, time_step, Temp, model, LastRHS)
+            old_time_step = (time_step == 1) ? NT : time_step - 1
+            UpdateRHS!(RHS, mesh, NT, time_step, view(AnnualTemp, :, old_time_step), model, LastRHS)
                         
-            #Temp = Asparse\RHS
-            Temp .= U\(L\RHS[p])
+            AnnualTemp[:, time_step] = U\(L\RHS[p])
 
-            Temp[1:nx] .= Temp[1]
-            Temp[dof-nx+1:dof] .= Temp[dof]
+            AnnualTemp[1:nx, time_step] .= AnnualTemp[1, time_step]
+            AnnualTemp[dof-nx+1:dof, time_step] .= AnnualTemp[dof, time_step]
 
-            AnnualTemp[:,time_step] = Temp
-
-            GlobTemp += computeMeanTemp(Temp,mesh)
+            GlobTemp += computeMeanTemp(view(AnnualTemp, :, time_step), mesh)
         end
         GlobTemp = GlobTemp/NT
         println(year,"  ",GlobTemp)
