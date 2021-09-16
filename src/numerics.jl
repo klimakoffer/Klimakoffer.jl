@@ -31,7 +31,7 @@ function main()
     dt = 1/NT
 
     #Mesh construction
-    mesh = mesh_init(nx)
+    mesh = Mesh(nx)
 
     #Static parameters
     
@@ -45,7 +45,7 @@ function main()
     #Read in parameters
     ###################
 
-    model = model_init(mesh,NT)
+    model = Model(mesh,NT)
 
 
     # Assemble the matrix

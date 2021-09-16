@@ -1,6 +1,4 @@
-
-
-struct mesh_t
+struct Mesh
     nx::Int         # Number of DOFs in x (Longitude)
     ny::Int         # Number of DOFs in y (Latitude)
     dof::Int
@@ -12,7 +10,7 @@ struct mesh_t
     area::Array{Float64,1}
 end
 
-function mesh_init(nx::Int)
+function Mesh(nx::Int)
     ny = Int(nx/2+1) # 65
     dof = nx*ny
 
@@ -41,5 +39,5 @@ function mesh_init(nx::Int)
 
     geom = sin(0.5*h)/area[1]
 
-    return mesh_t(nx,ny,dof,h,sh2,geom,csc2,cot,area)
+    return Mesh(nx,ny,dof,h,sh2,geom,csc2,cot,area)
 end

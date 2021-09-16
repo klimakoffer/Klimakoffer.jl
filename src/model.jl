@@ -11,7 +11,7 @@ const CO2ppm = 315.0 # 1950 AD
 # !CO2ppm=315.0 !21kaBP
 # !initial_year=-21000
 
-struct model_t
+struct Model
     D_DiffCoeff::Array{Float64,2}
     C_HeatCapacity::Array{Float64,2}
     a_albedo::Array{Float64,2}
@@ -20,7 +20,7 @@ struct model_t
     B_coeff::Float64
 end
 
-function model_init(mesh,NT)
+function Model(mesh,NT)
     @unpack nx,ny = mesh
     
     # Constants
@@ -55,7 +55,7 @@ function model_init(mesh,NT)
     
     A_coeff = 210.3  #[W/m^2]   : CO2 coefficient in the notes/paper =#
 
-    return model_t(D_DiffCoeff,C_HeatCapacity,a_albedo,SolarForcing,A_coeff,B_coeff)
+    return Model(D_DiffCoeff,C_HeatCapacity,a_albedo,SolarForcing,A_coeff,B_coeff)
 end
 
 
