@@ -20,7 +20,7 @@ struct Model
     B_coeff::Float64
 end
 
-function Model(mesh,NT)
+function Model(mesh, NT)
     @unpack nx,ny = mesh
     
     # Constants

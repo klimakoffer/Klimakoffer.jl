@@ -13,10 +13,9 @@ function index1d(i,j,nx)
 end
 
 function main()
-    nx = 128
     NT = 48 # Number of time-steps per year
 
-    mesh = Mesh(nx)
+    mesh = Mesh()
 
     model = Model(mesh, NT)
 

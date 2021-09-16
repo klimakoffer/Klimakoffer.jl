@@ -10,7 +10,7 @@ struct Mesh
     area::Array{Float64,1}
 end
 
-function Mesh(nx::Int)
+function Mesh(nx=128)
     ny = Int(nx/2+1) # 65
     dof = nx*ny
 
