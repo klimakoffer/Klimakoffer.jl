@@ -32,11 +32,30 @@ In the Julia REPL, first load the package Klimakoffer
 ```julia
 julia> using Klimakoffer
 ```
-Then, obtain the Answer to the Ultimate Question of Life, The Universe, and Everything by executing
+Then, set the number of time steps per year for the solver
 ```julia
-julia> answer()
-42
+NT = 48 # this is a good default
 ```
+Now you can create the mesh and model with
+```julia
+mesh = Mesh()
+model = Model(mesh, NT)
+```
+and combine everything into the discretization:
+```julia
+discretization = Discretization(mesh, model, NT)
+```
+Finally, you can solve for the equilibrium temperature with
+```julia
+GlobTemp = compute_equilibrium!(discretization)
+```
+
+For the impatient, this example can also be easily reproduced by just including
+the file `equilibrium_temperature_1950.jl` from the `examples` folder:
+```julia
+include(joinpath("examples", "equilibrium_temperature_1950.jl"))
+```
+
 
 ## Documentation
 There is not much there yet either, but
