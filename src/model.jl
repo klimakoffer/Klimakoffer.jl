@@ -1,78 +1,67 @@
-const Solar_Constant = 1371.685     # 100%  
-# const Solar_Constant = 1331.685   # 3% less   
-# const Solar_Constant = 1316.685   # 4%   
-# const Solar_Constant = 1344.685   # 2%   
-# const Solar_Constant = 1357.685   # 1%   
-
-const CO2ppm = 315.0 # 1950 AD
-
-# !CO2ppm=315.0 !9kaBP
-# !initial_year=-9000
-# !CO2ppm=315.0 !21kaBP
-# !initial_year=-21000
 
 struct Model
-    D_DiffCoeff::Array{Float64,2}
-    C_HeatCapacity::Array{Float64,2}
-    a_albedo::Array{Float64,2}
-    SolarForcing::Array{Float64,3}
-    A_coeff::Float64
-    B_coeff::Float64
+    diffusion_coeff::Array{Float64,2}   # Diffusion coefficient: depends on the sine of latitude
+    heat_capacity::Array{Float64,2}     # Heat capacity: depends on the geography (land, ocean, ice, etc.)
+    albedo::Array{Float64,2}            # Albedo coefficient: depends on the geography (land, ocean, ice, etc.)
+    solar_forcing::Array{Float64,3}     # Time-dependent incoming solar radiation: depends on the orbital parameters and the albedo
+    radiative_cooling_co2::Float64      # Constant outgoing long-wave radiation: depends on the CO2 concentration
+    radiative_cooling_feedback::Float64 # Outgoing long-wave radiation (feedback effects): models the water vapor cyces, lapse rate and cloud cover
 end
 
-function Model(mesh, NT)
+function Model(mesh, num_steps_year)
     @unpack nx,ny = mesh
     
     # Constants
-    CO2ppm  = 315 # 1950
-    B_coeff = 2.15   #[W/m^2/°C]: sensitivity of the seasonal cycle and annual change in the forcing agents
+    co2_concentration  = 315.0 #[ppm] 1950
+    radiative_cooling_feedback = 2.15   #[W/m^2/°C]: sensitivity of the seasonal cycle and annual change in the forcing agents
     
     # Read parameters
     
-    A_coeff = calc_CO2_concentration(CO2ppm)
+    radiative_cooling_co2 = calc_radiative_cooling_co2(co2_concentration)
     geography = read_geography(joinpath(@__DIR__, "..", "The_World.dat"),nx,ny)
-    a_albedo    = read_albedo(joinpath(@__DIR__, "..", "albedo.dat"),nx,ny)
-    D_DiffCoeff = calc_diffusion_coefficients(geography,nx,ny)
-    C_HeatCapacity, tau_land, tau_snow, tau_sea_ice, tau_mixed_layer = calc_heat_capacities(geography,B_coeff) # TODO: This is not the same as Fortran
+    albedo    = read_albedo(joinpath(@__DIR__, "..", "albedo.dat"),nx,ny)
+    diffusion_coeff = calc_diffusion_coefficients(geography,nx,ny)
+    heat_capacity, tau_land, tau_snow, tau_sea_ice, tau_mixed_layer = calc_heat_capacity(geography,radiative_cooling_feedback) # TODO: Remove unused variables
 
-    coalbedo = 1.0 .- a_albedo
+    co_albedo = 1.0 .- albedo
     
-    ECCR, XOBR, PERHR = orbital_params(1950)
-    SolarForcing = calc_solar_forcing(coalbedo,A_coeff,ecc=ECCR, ob=XOBR, per=PERHR); # TODO: Significant differences with fortran
+    ecc, ob, per = orbital_params(1950)
+    solar_forcing = calc_solar_forcing(co_albedo,radiative_cooling_co2,ecc=ecc, ob=ob, per=per); #TODO: Add arguments [nx, ny, num_steps_year]
     
-    
-    # Toy coefficients
-    #= SolarForcing   = ones(Float64,nx,ny,NT)
-    SolarForcing  .= 0.0
-    C_HeatCapacity = ones(Float64,nx,ny)
-    C_HeatCapacity.= 1.0
-    
-    a_albedo       = zeros(Float64,nx,ny)
-    D_DiffCoeff    = ones(Float64,nx,ny)
-    D_DiffCoeff   .= 0.5
-    
-    a_albedo      .= 0.5
-    
-    A_coeff = 210.3  #[W/m^2]   : CO2 coefficient in the notes/paper =#
+    return Model(diffusion_coeff,heat_capacity,albedo,solar_forcing,radiative_cooling_co2,radiative_cooling_feedback)
+end
 
-    return Model(D_DiffCoeff,C_HeatCapacity,a_albedo,SolarForcing,A_coeff,B_coeff)
+Base.size(model::Model) = size(model.heat_capacity)
+
+function Base.show(io::IO, model::Model)
+  nx, ny = size(model)
+  print(io, "Model() with ", nx, "×", ny, " degrees of freedom")
 end
 
 
-function calc_CO2_concentration(CO2ppm=CO2ppm)
+"""
+calc_radiative_cooling_co2()
+Computes the CO2 parameter depending on the CO2 concentration
 
-  # Define base values CO2_Base and A_Base
-  CO2_Base = 315.0
-  A_Base = 210.3
+* Default CO2 concentration is 315 ppm (equivalent to year 1950)
+"""
+function calc_radiative_cooling_co2(co2_concentration=315.0)
+
+  # Define base values for co2_concentration and radiative_cooling_co2
+  co2_concentration_base = 315.0
+  radiative_cooling_co2_base = 210.3
 
   # Doesn't change as long as CP2ppm doesn't change
-  A=A_Base-5.35*log(CO2ppm/CO2_Base)
+  radiative_cooling_co2=radiative_cooling_co2_base-5.35*log(co2_concentration/co2_concentration_base)
 
-  return A
+  return radiative_cooling_co2
 end
 
-# auxiliar function of calc_solar_forcing
-function _calc_insolation(dt, ob, ecc, per, nt, nlat, siny, cosy, tany, S0)
+"""
+_calc_insolation()
+auxiliar function of calc_solar_forcing
+"""
+function _calc_insolation(dt, ob, ecc, per, nt, nlat, siny, cosy, tany, s0)
 
   eccfac = 1.0 - ecc^2
   rzero  = (2.0*pi)/eccfac^1.5
@@ -106,10 +95,10 @@ function _calc_insolation(dt, ob, ecc, per, nt, nlat, siny, cosy, tany, S0)
         solar[j,n] = 0.0
       else
         if z <= -1.0                # when there is no sunset (summer)
-          solar[j,n] = rhofac * S0 * siny[j] * sindec
+          solar[j,n] = rhofac * s0 * siny[j] * sindec
         else
-          Hzero = acos(z)
-          solar[j,n] = rhofac/pi*S0*(Hzero*siny[j]*sindec+cosy[j]*cosdec*sin(Hzero))
+          h_zero = acos(z)
+          solar[j,n] = rhofac/pi*s0*(h_zero*siny[j]*sindec+cosy[j]*cosdec*sin(h_zero))
         end
       end
     end
@@ -119,15 +108,20 @@ function _calc_insolation(dt, ob, ecc, per, nt, nlat, siny, cosy, tany, S0)
 end
 
 
-  # orbital parameters of 1950 AD
-  # ecc = 0.016740             
-  # ob  = 0.409253
-  # per = 1.783037  
+"""
+calc_solar_forcing()
 
-function calc_solar_forcing(Pcoalbedo, A,yr=0; Solar_Cycle=false, S0=Solar_Constant, Orbital=false, ecc=0.016740, ob=0.409253, per=1.783037)
+* Default s0 is 1371.685 [W/m²] (Current solar constant)
+* Default orbital parameters of correspond to year 1950 AD:
+    ecc = 0.016740             
+    ob  = 0.409253
+    per = 1.783037  
+"""
+function calc_solar_forcing(co_albedo, radiative_cooling_co2,yr=0; solar_cycle=false, s0=1371.685, orbital=false, ecc=0.016740, ob=0.409253, per=1.783037)
   # Calculate the sin, cos, and tan of the latitudes of Earth from the
   # colatitudes, calculate the insolation
 
+  # TODO: Add as input arguments
   nlatitude   = 65
   nlongitude  = 128
   ntimesteps  = 48
@@ -154,35 +148,36 @@ function calc_solar_forcing(Pcoalbedo, A,yr=0; Solar_Cycle=false, S0=Solar_Const
         tany[j] = tan(lat)
       end
     end
-    lambda, solar = _calc_insolation(dt, ob, ecc, per, ntimesteps, nlatitude, siny, cosy, tany, S0)
-  elseif yr > 0 && (Solar_Cycle || Orbital)
-    lambda, solar = _calc_insolation(dt, ob, ecc, per, ntimesteps, nlatitude, siny, cosy, tany, S0)
+    lambda, solar = _calc_insolation(dt, ob, ecc, per, ntimesteps, nlatitude, siny, cosy, tany, s0)
+  elseif yr > 0 && (solar_cycle || orbital)
+    lambda, solar = _calc_insolation(dt, ob, ecc, per, ntimesteps, nlatitude, siny, cosy, tany, s0)
   end
 
+  # TODO: Not needed??????
   for j in 1:nlatitude
-    SUM = 0.0
+    sum = 0.0
     for ts in 1:ntimesteps
-      SUM=SUM+solar[j,ts]
+      sum=sum+solar[j,ts]
     end
   end
 
-  SolarForcing = zeros(Float64,nlongitude,nlatitude,ntimesteps)
+  solar_forcing = zeros(Float64,nlongitude,nlatitude,ntimesteps)
   # calcualte the seasonal forcing
   for ts in 1:ntimesteps
     for j in 1:nlatitude
       for i in 1:nlongitude
-        SolarForcing[i,j,ts] = solar[j,ts]*Pcoalbedo[i,j] - A
+        solar_forcing[i,j,ts] = solar[j,ts]*co_albedo[i,j] - radiative_cooling_co2
       end
     end
   end
-  return SolarForcing
+  return solar_forcing
 
 end
 
-function calc_heat_capacities(geography,B=2.15)
+function calc_heat_capacity(geography,radiative_cooling_feedback=2.15)
 
   # Depths 
-  depth_atmos = 5000.         # meters
+  depth_atmos = 5000.         # meters #TODO: not used???
   depth_mixed_layer = 70.0    # meters
   depth_soil = 2.0            # meters
   depth_seaice = 2.5          # meters
@@ -222,17 +217,17 @@ function calc_heat_capacities(geography,B=2.15)
     sum = sum + exp(-z)
   end
 
-  C_atmos  	= csp_atmos*layer_depth*1000.0*rho_atmos*sum/sec_per_yr
-  C_soil   	= depth_soil*rho_soil*csp_soil/sec_per_yr 
-  C_seaice 	= depth_seaice*rho_sea_ice*csp_sea_ice/sec_per_yr
-  C_snow   	= depth_snow * rho_snow * csp_snow/sec_per_yr
-  C_mixed_layer = depth_mixed_layer*rho_water*csp_water/sec_per_yr
+  c_atmos  	= csp_atmos*layer_depth*1000.0*rho_atmos*sum/sec_per_yr
+  c_soil   	= depth_soil*rho_soil*csp_soil/sec_per_yr 
+  c_seaice 	= depth_seaice*rho_sea_ice*csp_sea_ice/sec_per_yr
+  c_snow   	= depth_snow * rho_snow * csp_snow/sec_per_yr
+  c_mixed_layer = depth_mixed_layer*rho_water*csp_water/sec_per_yr
 
   # Calculate radiative relaxation times for columns
-  tau_land = (C_soil + C_atmos)/B * days_per_yr    
-  tau_snow = (C_snow + C_atmos)/B * days_per_yr 
-  tau_sea_ice = (C_seaice + C_atmos)/B * days_per_yr  
-  tau_mixed_layer = (C_mixed_layer + C_atmos)/B   
+  tau_land = (c_soil + c_atmos)/radiative_cooling_feedback * days_per_yr
+  tau_snow = (c_snow + c_atmos)/radiative_cooling_feedback * days_per_yr
+  tau_sea_ice = (c_seaice + c_atmos)/radiative_cooling_feedback * days_per_yr
+  tau_mixed_layer = (c_mixed_layer + c_atmos)/radiative_cooling_feedback
 
   # define heatcap
   heatcap = zeros(size(geography,1),size(geography,2))
@@ -242,21 +237,21 @@ function calc_heat_capacities(geography,B=2.15)
     for i in 1:size(geography,1)
       geo  = geography[i,j]
       if geo == 1                            # land
-        heatcap[i,j] = C_soil + C_atmos  
+        heatcap[i,j] = c_soil + c_atmos  
       elseif geo == 2                        # perennial sea ice
-        heatcap[i,j] = C_seaice + C_atmos
+        heatcap[i,j] = c_seaice + c_atmos
       elseif geo == 3                        # permanent snow cover 
-        heatcap[i,j] = C_snow + C_atmos         
+        heatcap[i,j] = c_snow + c_atmos         
       elseif geo == 4                        # lakes, inland seas
-        heatcap[i,j] = C_mixed_layer/3.0 + C_atmos 
+        heatcap[i,j] = c_mixed_layer/3.0 + c_atmos 
       elseif geo == 5                        # Pacific ocean 
-        heatcap[i,j] = C_mixed_layer + C_atmos
+        heatcap[i,j] = c_mixed_layer + c_atmos
       elseif geo == 6                        # Atlantic ocean 
-        heatcap[i,j] = C_mixed_layer + C_atmos
+        heatcap[i,j] = c_mixed_layer + c_atmos
       elseif geo == 7                        # Indian ocean 
-        heatcap[i,j] = C_mixed_layer + C_atmos
+        heatcap[i,j] = c_mixed_layer + c_atmos
       elseif geo == 8                        # Mediterranean 
-        heatcap[i,j] = C_mixed_layer + C_atmos
+        heatcap[i,j] = c_mixed_layer + c_atmos
       end                           
     end
   end  
@@ -264,15 +259,17 @@ function calc_heat_capacities(geography,B=2.15)
   return heatcap, tau_land, tau_snow, tau_sea_ice, tau_mixed_layer
 end
 
-
-# Calculate the diffusion coefficients at finest grid level.
+"""
+calc_diffusion_coefficients()
+Calculate the diffusion coefficients at finest grid level.
+"""
 function calc_diffusion_coefficients(geography,nlongitude=128,nlatitude=65)
 
-  Keq     = 0.65 # coefficinet for diffusion at equator
-  Kocean  = 0.40 # coefficient for ocean diffusion
-  Kland   = 0.65 # coefficinet for land diffusion
-  KlandNP = 0.28 # coefficinet for land diffusion (north pole)
-  KlandSP = 0.20 # coefficinet for land diffusion (south pole)
+  coeff_eq     = 0.65 # coefficinet for diffusion at equator
+  coeff_ocean  = 0.40 # coefficient for ocean diffusion
+  coeff_land   = 0.65 # coefficinet for land diffusion
+  coeff_landNP = 0.28 # coefficinet for land diffusion (north pole)
+  coeff_landSP = 0.20 # coefficinet for land diffusion (south pole)
 
   diffusion = zeros(Float64,nlongitude,nlatitude)
 
@@ -285,12 +282,12 @@ function calc_diffusion_coefficients(geography,nlongitude=128,nlatitude=65)
       for i = 1:nlongitude
           let geo = geography[i,j]
               if geo >= 5 && geo <= 7 # oceans
-                  diffusion[i,j] = (Keq-Kocean)*colat + Kocean
+                  diffusion[i,j] = (coeff_eq-coeff_ocean)*colat + coeff_ocean
               else # land, sea ice, etc
                   if j <= j_equator # northern hemisphere
-                      diffusion[i,j] = (Kland-KlandNP)*colat + KlandNP
+                      diffusion[i,j] = (coeff_land-coeff_landNP)*colat + coeff_landNP
                   else # southern hemisphere
-                      diffusion[i,j] = (Kland-KlandSP)*colat + KlandSP
+                      diffusion[i,j] = (coeff_land-coeff_landSP)*colat + coeff_landSP
                   end
                 end
           end
@@ -301,24 +298,24 @@ function calc_diffusion_coefficients(geography,nlongitude=128,nlatitude=65)
 end
 
 
-function orbital_params(ITT)
+function orbital_params(astronomical_year)
 
-  AE = [0.01860798, 0.01627522, -0.01300660, 0.00988829, -0.00336700,
+  ae = [0.01860798, 0.01627522, -0.01300660, 0.00988829, -0.00336700,
         0.00333077, -0.00235400, 0.00140015, 0.00100700, 0.00085700,
         0.00064990, 0.00059900, 0.00037800, -0.00033700, 0.00027600,
         0.00018200, -0.00017400, -0.00012400, 0.00001250]
 
-  BE = [4.2072050, 7.3460910, 17.8572630, 17.2205460, 16.8467330,
+  be = [4.2072050, 7.3460910, 17.8572630, 17.2205460, 16.8467330,
         5.1990790, 18.2310760, 26.2167580, 6.3591690, 16.2100160,
         3.0651810, 16.5838290, 18.4939800, 6.1909530, 18.8677930,
         17.4255670, 6.1860010, 18.4174410, 0.6678630]
 
-  CE = [28.620089, 193.788772, 308.307024, 320.199637, 279.376984,
+  ce = [28.620089, 193.788772, 308.307024, 320.199637, 279.376984,
         87.195000, 349.129677, 128.443387, 154.143880, 291.269597,
         114.860583, 332.092251, 296.414411, 145.769910, 337.237063,
         152.092288, 126.839891, 210.667199, 72.108838]
 
-  AOB = [-2462.2214466, -857.3232075, -629.3231835, -414.2804924,
+  aob = [-2462.2214466, -857.3232075, -629.3231835, -414.2804924,
           -311.7632587, 308.9408604, -162.5533601, -116.1077911,
           101.1189923, -67.6856209, 24.9079067, 22.5811241,
           -21.1648355, -15.6549876, 15.3936813, 14.6660938,
@@ -331,7 +328,7 @@ function orbital_params(ITT)
           1.4738838, -1.4593669, 1.4192259, -1.181898,
           1.1756474, -1.1316126, 1.0896928]
 
-  BOB = [31.609974, 32.620504, 24.172203, 31.983787, 44.828336,
+  bob = [31.609974, 32.620504, 24.172203, 31.983787, 44.828336,
           30.973257, 43.668246, 32.246691, 30.599444, 42.681324,
           43.836462, 47.439436, 63.219948, 64.230478, 1.01053,
           7.437771, 55.782177, 0.373813, 13.218362, 62.583231,
@@ -342,7 +339,7 @@ function orbital_params(ITT)
           55.14546, 69.000539, 11.07135, 74.291298, 11.047742,
           0.636717, 12.844549]
 
-  COB = [251.9025, 280.8325, 128.3057, 292.7252, 15.3747,
+  cob = [251.9025, 280.8325, 128.3057, 292.7252, 15.3747,
           263.7951, 308.4258, 240.0099, 222.9725, 268.7809,
           316.7998, 319.6024, 143.805, 172.7351, 28.93, 123.5968,
           20.2082, 40.8226, 123.4722, 155.6977, 184.6277, 267.2772,
@@ -351,7 +348,7 @@ function orbital_params(ITT)
           61.0309, 296.2073, 135.4894, 114.875, 247.0691, 256.6114,
           32.1008, 143.6804, 16.8784, 160.6835, 27.5932, 348.1074, 82.6496]
 
-  AOP = [7391.022589, 2555.1526947, 2022.7629188, -1973.6517951, 1240.2321818,
+  aop = [7391.022589, 2555.1526947, 2022.7629188, -1973.6517951, 1240.2321818,
           953.8679112, -931.7537108, 872.3795383, 606.3544732, -496.0274038,
           456.9608039, 346.946232, -305.8412902, 249.6173246, -199.10272,
           191.0560889, -175.2936572, 165.9068833, 161.1285917, 139.7878093,
@@ -368,7 +365,7 @@ function orbital_params(ITT)
           -11.2617293, -10.4664199, 10.433397, -10.2377466, 10.1934446,
           -10.1280191, 10.0289441, -10.0034259]
 
-  BOP = [31.609974, 32.620504, 24.172203, 0.636717, 31.983787,
+  bop = [31.609974, 32.620504, 24.172203, 0.636717, 31.983787,
           3.138886, 30.973257, 44.828336, 0.991874, 0.373813,
           43.668246, 32.246691, 30.599444, 2.147012, 10.511172,
           42.681324, 13.650058, 0.986922, 9.874455, 13.013341,
@@ -385,7 +382,7 @@ function orbital_params(ITT)
           11.498094, 0.578834, 9.237738, 49.747842, 2.147012,
           1.196895, 2.133898, 0.173168]
 
-  COP = [251.9025, 280.8325, 128.3057, 348.1074, 292.7252, 165.1686,
+  cop = [251.9025, 280.8325, 128.3057, 348.1074, 292.7252, 165.1686,
           263.7951, 15.3747, 58.5749, 40.8226, 308.4258, 240.0099,
           222.9725, 106.5937, 114.5182, 268.7809, 279.6869, 39.6448,
           126.4108, 291.5795, 307.2848, 18.93, 273.7596, 143.805,
@@ -399,126 +396,126 @@ function orbital_params(ITT)
           201.6651, 294.6547, 99.8233, 213.5577, 154.1631, 232.7153,
           138.3034, 204.6609, 106.5938, 250.4676, 332.3345, 27.3039]
 
-  PIR = pi / 180
-  PIRR = PIR / 3600
-  STEP = 360/365.25
+  pir = pi / 180
+  pirr = pir / 3600
+  step = 360/365.25 # TODO: Is this var unused???
 
   # Eccentricity
-  NEF=19           #Table 4 Fundamental elements of the ecliptic
-  for I in 1:NEF
-    BE[I] = BE[I]*PIRR
-    CE[I] = CE[I]*PIR
+  nef=19           #Table 4 Fundamental elements of the ecliptic
+  for I in 1:nef
+    be[I] = be[I]*pirr
+    ce[I] = ce[I]*pir
   end
 
   # Obliquity
-  XOD = 23.320556   # Berger's 1978 paper 23o320 556
-  NOB = 47        # retrieve the whole 47 terms in Table 1 of Berger78 JAS paper
-  for I in 1:NOB
-    BOB[I] = BOB[I]*PIRR
-    COB[I] = COB[I]*PIR
+  xod = 23.320556   # Berger's 1978 paper 23o320 556
+  nob = 47        # retrieve the whole 47 terms in Table 1 of Berger78 JAS paper
+  for I in 1:nob
+    bob[I] = bob[I]*pirr
+    cob[I] = cob[I]*pir
   end
 
   # General Precession in Longitude
-  XOP = 3.392506  #in Berger78JAS 3o392 506
-  PRM = 50.439273 # in Berger78JAS 50439 273
-  NOP = 78
+  xop = 3.392506  #in Berger78JAS 3o392 506
+  prm = 50.439273 # in Berger78JAS 50439 273
+  nop = 78
 
-  for I in 1:NOP
-      BOP[I] = BOP[I]*PIRR
-      COP[I] = COP[I]*PIR
+  for I in 1:nop
+      bop[I] = bop[I]*pirr
+      cop[I] = cop[I]*pir
   end
-  if ITT < 0
-    T = 1.0 * ITT
+  if astronomical_year < 0
+    T = 1.0 * astronomical_year
   end
-  T = 1.0*(ITT-1950)
-  XES = 0.0
-  XEC = 0.0
+  T = 1.0*(astronomical_year-1950)
+  xes = 0.0
+  xec = 0.0
 
-  for I in 1:NEF
-    ARG = BE[I]*T+CE[I]
-    XES = XES+AE[I]*sin(ARG)   #e.sin.pi
-    XEC = XEC+AE[I]*cos(ARG)   #e.cos.pi
+  for i in 1:nef
+    arg = be[i]*T+ce[i]
+    xes = xes+ae[i]*sin(arg)   #e.sin.pi
+    xec = xec+ae[i]*cos(arg)   #e.cos.pi
   end
 
-  ECC = sqrt(XES*XES+XEC*XEC)  #eccentricity calculated
-  TRA = abs(XEC)
+  ecc = sqrt(xes*xes+xec*xec)  #eccentricity calculated
+  tra = abs(xec)
 
-  if TRA <= 1.0e-8
-    if XES < 0.0
-      RP = 1.5 * pi
-      PERH = RP/PIR
-    elseif XES == 0.0
-      RP = 0.0
-      PERH = RP/PIR
+  if tra <= 1.0e-8
+    if xes < 0.0
+      rp = 1.5 * pi
+      perh = rp/pir
+    elseif xes == 0.0
+      rp = 0.0
+      perh = rp/pir
     else
-      RP = pi/2.0
-      PERH = RP/PIR
+      rp = pi/2.0
+      perh = rp/pir
     end
   else
-    RP = atan(XES/XEC)
-    if XEC < 0.0
-      RP = RP + pi
-      PERH = RP/PIR
-    elseif XEC == 0.0
-      if XES < 0.0
-        RP = 1.5 * pi
-        PERH = RP/PIR
-      elseif XES == 0.0
-        RP = 0.0
-        PERH = RP/PIR
+    rp = atan(xes/xec)
+    if xec < 0.0
+      rp = rp + pi
+      perh = rp/pir
+    elseif xec == 0.0
+      if xes < 0.0
+        rp = 1.5 * pi
+        perh = rp/pir
+      elseif xes == 0.0
+        rp = 0.0
+        perh = rp/pir
       else
-        RP = pi/2.0
-        PERH = RP/PIR
+        rp = pi/2.0
+        perh = rp/pir
       end
     else
-      if XES < 0.0
-        RP = RP + 2.0 * pi
-        PERH = RP/PIR
-      elseif XES == 0.0
-        PERH = RP/PIR
+      if xes < 0.0
+        rp = rp + 2.0 * pi
+        perh = rp/pir
+      elseif xes == 0.0
+        perh = rp/pir
       else
-        PERH = RP/PIR
+        perh = rp/pir
       end
     end
   end
 
-  PRG = PRM * T
+  prg = prm * T
 
-  for I in 1:NOP
-    ARG = BOP[I]*T+COP[I]
-    PRG = PRG+AOP[I]*sin(ARG)
+  for I in 1:nop
+    arg = bop[I]*T+cop[I]
+    prg = prg+aop[I]*sin(arg)
   end
 
-  PRG = PRG/3600.0+XOP
-  PERH = PERH+PRG
+  prg = prg/3600.0+xop
+  perh = perh+prg
 
-  if PERH < 0.0
-    while PERH < 0.0
-      PERH = PERH + 360.0
+  if perh < 0.0
+    while perh < 0.0
+      perh = perh + 360.0
     end
-    if PERH > 0.0
-      while PERH >= 360.0
-        PERH = PERH - 360.0
+    if perh > 0.0
+      while perh >= 360.0
+        perh = perh - 360.0
       end
     end
-  elseif PERH > 0.0
-    while PERH >= 360.0
-      PERH = PERH - 360.0
+  elseif perh > 0.0
+    while perh >= 360.0
+      perh = perh - 360.0
     end
   end
 
-  PRE=ECC*sin(PERH*PIR)
+  pre=ecc*sin(perh*pir) #TODO: not used???
 
-  XOB = XOD
-  for I in 1:NOB
-    ARG = BOB[I]*T+COB[I]
-    XOB = XOB+AOB[I]/3600.0*cos(ARG)
+  xob = xod
+  for I in 1:nob
+    arg = bob[I]*T+cob[I]
+    xob = xob+aob[I]/3600.0*cos(arg)
   end   # obliquity calculated
-  ECCR  = ECC
-  XOBR  = XOB*pi/180.0
-  PERHR = PERH*pi/180.0
+  eccr  = ecc
+  xobr  = xob*pi/180.0
+  perhr = perh*pi/180.0
 
-  return ECCR, XOBR, PERHR
+  return eccr, xobr, perhr
 end
 
 
