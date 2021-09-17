@@ -25,6 +25,6 @@ for years in 1950:2020
   co2_concentration_yearly[iter] = co2_concentration_start + co2_concentration_yearly_delta * (iter - 1)
   mean_temperature_yearly[iter] = compute_equilibrium!(discretization; co2_concentration=co2_concentration_yearly[iter], verbose = false)
   #@printf "Global Temerature in year ", years, " with CO2=", co2_concentration_yearly[iter], " [ppm] is T=", mean_temperature_yearly[iter], " °C"
-  Printf.@printf "Global Temerature in year %4i with CO2 concentration %.2f [ppm] is T=%.3f °C" years co2_concentration_yearly[iter] mean_temperature_yearly[iter]
+  @printf "Global Temerature in year %4i with CO2 concentration %.2f [ppm] is T=%.3f °C" years co2_concentration_yearly[iter] mean_temperature_yearly[iter]
   println("")
 end
