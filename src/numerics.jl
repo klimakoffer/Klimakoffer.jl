@@ -19,12 +19,10 @@ end
 * rel_error is the tolerance for global temperature equilibrium (default is 2e-5).
 * max_years is the maximum number of annual cycles to be computed when searching for equilibrium
 """
-function compute_equilibrium!(discretization; co2_concentration = 315.0, max_years=100, rel_error=2e-5, verbose=true)
+function compute_equilibrium!(discretization; max_years=100, rel_error=2e-5, verbose=true)
     @unpack mesh, model, low_mat, upp_mat, perm_array, num_steps_year, annual_temperature, rhs, last_rhs  = discretization
     @unpack nx, dof = mesh
     
-    radiative_cooling_co2 = calc_radiative_cooling_co2(co2_concentration)
-
     average_temperature = average_temperature_old = area_weighted_average(view(annual_temperature, :, num_steps_year), mesh)
 
     if verbose
@@ -36,7 +34,7 @@ function compute_equilibrium!(discretization; co2_concentration = 315.0, max_yea
         average_temperature = 0.0
         for time_step in 1:num_steps_year
             old_time_step = (time_step == 1) ? num_steps_year : time_step - 1
-            update_rhs!(rhs, mesh, num_steps_year, time_step, view(annual_temperature, :, old_time_step), model, radiative_cooling_co2, last_rhs)
+            update_rhs!(rhs, mesh, num_steps_year, time_step, view(annual_temperature, :, old_time_step), model, last_rhs)
                         
             annual_temperature[:, time_step] = upp_mat\(low_mat\rhs[perm_array])
 
@@ -79,11 +77,11 @@ function compute_evolution!(discretization, co2_concentration_yearly, mean_tempe
     max_years = size(co2_concentration_yearly,1)
 
     for year in 1:max_years
-        radiative_cooling_co2 = calc_radiative_cooling_co2(co2_concentration_yearly[year])
+        set_co2_concentration!(model, co2_concentration_yearly[year])
         average_temperature = 0.0
         for time_step in 1:num_steps_year
             old_time_step = (time_step == 1) ? num_steps_year : time_step - 1
-            update_rhs!(rhs, mesh, num_steps_year, time_step, view(annual_temperature, :, old_time_step), model, radiative_cooling_co2, last_rhs)
+            update_rhs!(rhs, mesh, num_steps_year, time_step, view(annual_temperature, :, old_time_step), model, last_rhs)
                         
             annual_temperature[:, time_step] = upp_mat\(low_mat\rhs[perm_array])
 
@@ -212,9 +210,9 @@ function compute_matrix(mesh,num_steps_year,model)
     return matrix
 end
 
-function update_rhs!(rhs, mesh, num_steps_year, time_step, temperature, model, radiative_cooling_co2, last_rhs)
+function update_rhs!(rhs, mesh, num_steps_year, time_step, temperature, model,  last_rhs)
     @unpack nx,ny = mesh
-    @unpack heat_capacity, solar_forcing = model
+    @unpack heat_capacity, solar_forcing, radiative_cooling_co2 = model
     for j=1:ny
         for i=1:nx
             row_idx = index1d(i,j,nx)
