@@ -64,10 +64,9 @@ function compute_equilibrium!(discretization; co2_concentration = 315.0, max_yea
 end
 
 """
-    compute_evolution!!(...)
+    compute_evolution!(...)
 
-* rel_error is the tolerance for global temperature equilibrium (default is 2e-5).
-* max_years is the maximum number of annual cycles to be computed when searching for equilibrium
+Compute the evolution of the mean temperature with varying CO2 levels.
 """
 function compute_evolution!(discretization, co2_concentration_yearly, mean_temperature_yearly, year_start; verbose=true)
     @unpack mesh, model, low_mat, upp_mat, perm_array, num_steps_year, annual_temperature, rhs, last_rhs  = discretization
