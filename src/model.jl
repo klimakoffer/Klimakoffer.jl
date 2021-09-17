@@ -16,7 +16,6 @@ function Model(mesh, num_steps_year)
     
     # Read parameters
     
-    #radiative_cooling_co2 = calc_radiative_cooling_co2(co2_concentration)
     geography = read_geography(joinpath(@__DIR__, "..", "The_World.dat"),nx,ny)
     albedo    = read_albedo(joinpath(@__DIR__, "..", "albedo.dat"),nx,ny)
     diffusion_coeff = calc_diffusion_coefficients(geography,nx,ny)
