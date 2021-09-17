@@ -13,6 +13,7 @@ Klimakoffer is about making the process of climate simulation comprehensible and
 ## Quickstart
 [![nbviewer](https://raw.githubusercontent.com/jupyter/design/master/logos/Badges/nbviewer_badge.svg)](https://nbviewer.jupyter.org/github/klimakoffer/Klimakoffer.jl/blob/main/demo.ipynb)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/klimakoffer/Klimakoffer.jl/HEAD?filepath=demo.ipynb)
+
 If you just want to try out Klimakoffer without installing anything (not even
 Julia) you, can launch a [Jupyter](https://jupyter.org/) notebook in your
 browser via [mybinder.org](https://mybinder.org/) by clicking on the "launch binder" badge above.
