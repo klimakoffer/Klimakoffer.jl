@@ -82,12 +82,12 @@ function compute_evolution!(discretization, co2_concentration_yearly, year_start
     year_array = zeros(Float64,max_years)
     mean_temperature_yearly = zeros(Float64,max_years)
 
-    # Fill year array
-    year_at_step[1] = year_start + 0.21644 # The simulation starts at the vernal equinox
+    # Fill year arrays
+    year_at_step[1] = year_start + 0.21644  # The simulation starts at the vernal equinox
     for year in 2:size(year_at_step,1)
         year_at_step[year] = year_at_step[year-1] + 1.0/num_steps_year
     end
-    year_array[1] = year_start + 0.71644
+    year_array[1] = year_start + 0.71644    # The simulation starts at the vernal equinox
     for year in 2:max_years
         year_array[year] = year_array[year-1] + 1.0
     end
