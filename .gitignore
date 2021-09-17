@@ -5,3 +5,4 @@ public/
 coverage/
 coverage_report/
 **/*.jl.*.cov
+.ipynb_checkpoints/
