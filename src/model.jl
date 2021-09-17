@@ -250,13 +250,11 @@ function calc_heat_capacity(geography,radiative_cooling_feedback=2.15)
         heatcap[i,j] = c_snow + c_atmos         
       elseif geo == 4                        # lakes, inland seas
         heatcap[i,j] = c_mixed_layer/3.0 + c_atmos 
-      elseif geo == 5                        # Pacific ocean 
-        heatcap[i,j] = c_mixed_layer + c_atmos
-      elseif geo == 6                        # Atlantic ocean 
-        heatcap[i,j] = c_mixed_layer + c_atmos
-      elseif geo == 7                        # Indian ocean 
-        heatcap[i,j] = c_mixed_layer + c_atmos
-      elseif geo == 8                        # Mediterranean 
+      elseif geo in (5, 6, 7, 8)
+        # 5: Pacific ocean
+        # 6: Atlantic ocean
+        # 7: Indian ocean
+        # 8: Mediterranean
         heatcap[i,j] = c_mixed_layer + c_atmos
       end                           
     end
