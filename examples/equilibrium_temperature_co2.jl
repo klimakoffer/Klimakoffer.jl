@@ -20,7 +20,7 @@ co2_concentration_start = 315.01
 co2_concentration_yearly_delta = 1.39
 
 
-for years = 1950:2020
+for years in 1950:2020
   iter = years+1-year_start
   co2_concentration_yearly[iter] = co2_concentration_start + co2_concentration_yearly_delta * (iter - 1)
   mean_temperature_yearly[iter] = compute_equilibrium!(discretization; co2_concentration=co2_concentration_yearly[iter], verbose = false)
