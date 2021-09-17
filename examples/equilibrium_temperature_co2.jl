@@ -11,7 +11,7 @@ discretization = Discretization(mesh, model, NT)
 
 year_start = 1950
 year_end = 2020
-year_delta = year_end-year_start+1
+year_delta = year_end - year_start + 1
 
 co2_concentration_yearly = zeros(Float64,year_delta)
 mean_temperature_yearly = zeros(Float64, year_delta)
