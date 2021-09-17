@@ -16,42 +16,49 @@ end
 """
     compute_equilibrium!(...)
 
-RelError is the tolerance for global temperature equilibrium.
+* rel_error is the tolerance for global temperature equilibrium (default is 2e-5).
+* max_years is the maximum number of annual cycles to be computed when searching for equilibrium
 """
-function compute_equilibrium!(discretization; maxYears=100, RelError=2e-5)
-    @unpack mesh, model, L, U, p, NT, AnnualTemp, RHS, LastRHS  = discretization
+function compute_equilibrium!(discretization; max_years=100, rel_error=2e-5, verbose=true)
+    @unpack mesh, model, low_mat, upp_mat, perm_array, num_steps_year, annual_temperature, rhs, last_rhs  = discretization
     @unpack nx, dof = mesh
 
-    GlobTemp = oldGlobTemp = computeMeanTemp(view(AnnualTemp, :, NT), mesh)
+    average_temperature = average_temperature_old = area_weighted_average(view(annual_temperature, :, num_steps_year), mesh)
 
-    println("year","  ","GlobTemp")
-    println(0,"  ",oldGlobTemp)
+    if verbose
+      println("year","  ","Average Temperature")
+      println(0,"  ",average_temperature_old)
+    end
 
-    for year in 1:maxYears
-        GlobTemp = 0.0
-        for time_step in 1:NT
-            old_time_step = (time_step == 1) ? NT : time_step - 1
-            UpdateRHS!(RHS, mesh, NT, time_step, view(AnnualTemp, :, old_time_step), model, LastRHS)
+    for year in 1:max_years
+        average_temperature = 0.0
+        for time_step in 1:num_steps_year
+            old_time_step = (time_step == 1) ? num_steps_year : time_step - 1
+            update_rhs!(rhs, mesh, num_steps_year, time_step, view(annual_temperature, :, old_time_step), model, last_rhs)
                         
-            AnnualTemp[:, time_step] = U\(L\RHS[p])
+            annual_temperature[:, time_step] = upp_mat\(low_mat\rhs[perm_array])
 
-            AnnualTemp[1:nx, time_step] .= AnnualTemp[1, time_step]
-            AnnualTemp[dof-nx+1:dof, time_step] .= AnnualTemp[dof, time_step]
+            annual_temperature[1:nx, time_step] .= annual_temperature[1, time_step]
+            annual_temperature[dof-nx+1:dof, time_step] .= annual_temperature[dof, time_step]
 
-            GlobTemp += computeMeanTemp(view(AnnualTemp, :, time_step), mesh)
+            average_temperature += area_weighted_average(view(annual_temperature, :, time_step), mesh)
         end
-        GlobTemp = GlobTemp/NT
-        println(year,"  ",GlobTemp)
+        average_temperature = average_temperature/num_steps_year
+        if verbose
+          println(year,"  ",average_temperature)
+        end
         
-        if (abs(GlobTemp-oldGlobTemp)<RelError)
-            println("EQUILIBRIUM REACHED!")
+        if (abs(average_temperature-average_temperature_old)<rel_error)
+            if verbose
+              println("EQUILIBRIUM REACHED!")
+            end
             break
         end
         
-        oldGlobTemp = GlobTemp
+        average_temperature_old = average_temperature
     end
 
-    return GlobTemp
+    return average_temperature
 end
 
 
@@ -59,51 +66,52 @@ end
 """
 Computes mean temperature in the globe at a specific time
 """
-function computeMeanTemp(Temp,mesh)
+function area_weighted_average(vector,mesh)
     @unpack nx,ny,area,dof = mesh
 
-    MeanTemp = 0.0
+    average_vector = 0.0
     
     # Contribution of inner points
     for j=2:ny-1
         for i=1:nx
             row_idx = index1d(i,j,nx)
-            MeanTemp += area[j] * Temp[row_idx]
+            average_vector += area[j] * vector[row_idx]
         end
     end
 
     # Poles
-    MeanTemp += area[1] * (Temp[1] + Temp[dof]) 
+    average_vector += area[1] * (vector[1] + vector[dof]) 
 
-    return MeanTemp
+    return average_vector
 end
 
-function ComputeMatrix(mesh,NT,model)
-    @unpack nx,ny,dof,h,sh2,geom,csc2,cot,area = mesh
-    @unpack D_DiffCoeff,C_HeatCapacity,B_coeff = model
-    A    = zeros(Float64,dof,dof)
+function compute_matrix(mesh,num_steps_year,model)
+    @unpack nx,ny,dof,h,geom,csc2,cot,area = mesh
+    @unpack diffusion_coeff,heat_capacity,radiative_cooling_feedback = model
+    matrix = zeros(Float64,dof,dof)
+    sh2 = 1 / h^2
     # Inner DOFs (c coefficients are divided by h^2)
     for j=2:ny-1
         for i=1:nx
 
             # Compute coefficients
-            c0 = 2 * sh2 * D_DiffCoeff[i,j] * (1 + csc2[j]) + 2 * C_HeatCapacity[i,j] * NT + B_coeff
+            c0 = 2 * sh2 * diffusion_coeff[i,j] * (1 + csc2[j]) + 2 * heat_capacity[i,j] * num_steps_year + radiative_cooling_feedback
 
             # Get diffusion coefficient 
             if (i == 1) # Periodic BC
-                dPhi = (D_DiffCoeff[2,j] - D_DiffCoeff[nx,j]) / (2 * h)
+                d_phi = (diffusion_coeff[2,j] - diffusion_coeff[nx,j]) / (2 * h)
             elseif (i == nx) # Periodic BC
-                dPhi = (D_DiffCoeff[1,j] - D_DiffCoeff[nx-1,j]) / (2 * h)
+                d_phi = (diffusion_coeff[1,j] - diffusion_coeff[nx-1,j]) / (2 * h)
             else # Inner DOFs
-                dPhi = (D_DiffCoeff[i+1,j] - D_DiffCoeff[i-1,j]) / (2 * h)
+                d_phi = (diffusion_coeff[i+1,j] - diffusion_coeff[i-1,j]) / (2 * h)
             end
 
-            c1 = sh2 * csc2[j] * (D_DiffCoeff[i,j] - 0.5 * h * dPhi)
-            c3 = sh2 * csc2[j] * (D_DiffCoeff[i,j] + 0.5 * h * dPhi)
+            c1 = sh2 * csc2[j] * (diffusion_coeff[i,j] - 0.5 * h * d_phi)
+            c3 = sh2 * csc2[j] * (diffusion_coeff[i,j] + 0.5 * h * d_phi)
 
-            dTheta= (D_DiffCoeff[i,j+1] - D_DiffCoeff[i,j-1]) / (2 * h)
-            c2 = sh2 * (D_DiffCoeff[i,j] - 0.5 * h * (D_DiffCoeff[i,j] * cot[j] + dTheta))
-            c4 = sh2 * (D_DiffCoeff[i,j] + 0.5 * h * (D_DiffCoeff[i,j] * cot[j] + dTheta))
+            d_theta= (diffusion_coeff[i,j+1] - diffusion_coeff[i,j-1]) / (2 * h)
+            c2 = sh2 * (diffusion_coeff[i,j] - 0.5 * h * (diffusion_coeff[i,j] * cot[j] + d_theta))
+            c4 = sh2 * (diffusion_coeff[i,j] + 0.5 * h * (diffusion_coeff[i,j] * cot[j] + d_theta))
 
             # Fill matrix A
             row_idx = index1d(i,j,nx)
@@ -122,65 +130,64 @@ function ComputeMatrix(mesh,NT,model)
             col_idx_c2 = row_idx - nx
             col_idx_c4 = row_idx + nx
 
-            A[row_idx,col_idx_c0] = c0
-            A[row_idx,col_idx_c1] = -c1
-            A[row_idx,col_idx_c2] = -c2
-            A[row_idx,col_idx_c3] = -c3
-            A[row_idx,col_idx_c4] = -c4
+            matrix[row_idx,col_idx_c0] = c0
+            matrix[row_idx,col_idx_c1] = -c1
+            matrix[row_idx,col_idx_c2] = -c2
+            matrix[row_idx,col_idx_c3] = -c3
+            matrix[row_idx,col_idx_c4] = -c4
 
-            # Get RHS
-            # RHS[row_idx] = -(c0 * Temp[col_idx_c0] - c1 * Temp[col_idx_c0] - c2 * Temp[col_idx_c2] - c3 * Temp[col_idx_c3] - c4 * Temp[col_idx_c4]) + 4 * C_HeatCapacity[i,j]
+            # Get rhs
+            # rhs[row_idx] = -(c0 * Temp[col_idx_c0] - c1 * Temp[col_idx_c0] - c2 * Temp[col_idx_c2] - c3 * Temp[col_idx_c3] - c4 * Temp[col_idx_c4]) + 4 * heat_capacity[i,j]
         end
     end
 
     # Poles
-    Tarea = area[1] + area[2]
+    total_area = area[1] + area[2]
 
-    DT2np = zeros(Float64,nx)
-    DT2sp = zeros(Float64,nx)
+    diff_total_np = zeros(Float64,nx)
+    diff_total_sp = zeros(Float64,nx)
     for i=1:nx
-        DT2np[i] = (area[1] * D_DiffCoeff[1,1]  + area[2] * D_DiffCoeff[i,2]) / Tarea 
-        DT2sp[i] = (area[1] * D_DiffCoeff[1,ny] + area[2] * D_DiffCoeff[i,ny-1]) / Tarea 
+        diff_total_np[i] = (area[1] * diffusion_coeff[1,1]  + area[2] * diffusion_coeff[i,2]) / total_area 
+        diff_total_sp[i] = (area[1] * diffusion_coeff[1,ny] + area[2] * diffusion_coeff[i,ny-1]) / total_area 
     end
-    MDnp = sum(DT2np)
-    MDsp = sum(DT2sp) 
+    diff_total_sum_np = sum(diff_total_np)
+    diff_total_sum_sp = sum(diff_total_sp) 
 
-    GCnp = geom * MDnp + B_coeff + 2 * C_HeatCapacity[1,1] * NT     # north pole 
-    GCsp = geom * MDsp + B_coeff + 2 * C_HeatCapacity[1,ny] * NT    # south pole
+    gc_np = geom * diff_total_sum_np + radiative_cooling_feedback + 2 * heat_capacity[1,1] * num_steps_year     # north pole 
+    gc_sp = geom * diff_total_sum_sp + radiative_cooling_feedback + 2 * heat_capacity[1,ny] * num_steps_year    # south pole
 
     for i=1:nx
         #North pole
         row_idx = i
-        A[row_idx,row_idx] = GCnp
+        matrix[row_idx,row_idx] = gc_np
         for ii=1:nx
-            A[row_idx,nx+ii] = - geom * DT2np[ii]
+            matrix[row_idx,nx+ii] = - geom * diff_total_np[ii]
         end
         
         #South pole
         row_idx = dof + 1 - i
-        A[row_idx,row_idx] = GCsp
+        matrix[row_idx,row_idx] = gc_sp
         for ii=1:nx
-            A[row_idx,dof-2*nx+ii] = - geom * DT2sp[ii]
+            matrix[row_idx,dof-2*nx+ii] = - geom * diff_total_sp[ii]
         end
     end
-    return A
+    return matrix
 end
 
-function UpdateRHS!(RHS, mesh, NT, time_step, Temp, model, LastRHS)
-    # ACHTUNG!!: Here we assume that all nodes at each pole have the same model parameters
+function update_rhs!(rhs, mesh, num_steps_year, time_step, temperature, model, last_rhs)
     @unpack nx,ny = mesh
-    @unpack C_HeatCapacity, SolarForcing, A_coeff = model
+    @unpack heat_capacity, solar_forcing, radiative_cooling_co2 = model
     for j=1:ny
         for i=1:nx
             row_idx = index1d(i,j,nx)
 
-            RHS[row_idx] = 4 * C_HeatCapacity[i,j] * Temp[row_idx] * NT  - LastRHS[row_idx] + SolarForcing[i,j,time_step] #- 2 * A_coeff
+            rhs[row_idx] = 4 * heat_capacity[i,j] * temperature[row_idx] * num_steps_year  - last_rhs[row_idx] + solar_forcing[i,j,time_step] #- 2 * radiative_cooling_co2
             if (time_step == 1)
-                RHS[row_idx] += SolarForcing[i,j,NT]
+                rhs[row_idx] += solar_forcing[i,j,num_steps_year]
             else
-                RHS[row_idx] += SolarForcing[i,j,time_step-1]
+                rhs[row_idx] += solar_forcing[i,j,time_step-1]
             end
         end
     end
-    LastRHS .= RHS
+    last_rhs .= rhs
 end
