@@ -66,7 +66,7 @@ end
 
 Compute the evolution of the mean temperature with varying CO2 levels.
 """
-function compute_evolution!(discretization, co2_concentration_yearly, mean_temperature_yearly, year_start; verbose=true)
+function compute_evolution!(discretization, co2_concentration_yearly, year_start; verbose=true)
     @unpack mesh, model, low_mat, upp_mat, perm_array, num_steps_year, annual_temperature, rhs, last_rhs  = discretization
     @unpack nx, dof = mesh
     
@@ -75,6 +75,26 @@ function compute_evolution!(discretization, co2_concentration_yearly, mean_tempe
     end
     
     max_years = size(co2_concentration_yearly,1)
+
+    # Allocate output arrays
+    year_at_step = zeros(Float64,max_years*num_steps_year+1)
+    mean_temperature_at_step = zeros(Float64,max_years*num_steps_year+1)
+    year_array = zeros(Float64,max_years)
+    mean_temperature_yearly = zeros(Float64,max_years)
+
+    # Fill year array
+    year_at_step[1] = year_start + 0.21644 # The simulation starts at the vernal equinox
+    for year in 2:size(year_at_step,1)
+        year_at_step[year] = year_at_step[year-1] + 1.0/num_steps_year
+    end
+    year_array[1] = year_start + 0.71644
+    for year in 2:max_years
+        year_array[year] = year_array[year-1] + 1.0
+    end
+
+    # Initialize the temperature array
+    mean_temperature_at_step[1] = area_weighted_average(view(annual_temperature, :, num_steps_year), mesh)
+    step = 1
 
     for year in 1:max_years
         set_co2_concentration!(model, co2_concentration_yearly[year])
@@ -88,7 +108,10 @@ function compute_evolution!(discretization, co2_concentration_yearly, mean_tempe
             annual_temperature[1:nx, time_step] .= annual_temperature[1, time_step]
             annual_temperature[dof-nx+1:dof, time_step] .= annual_temperature[dof, time_step]
 
-            average_temperature += area_weighted_average(view(annual_temperature, :, time_step), mesh)
+            # Compute mean temperature
+            step += 1
+            mean_temperature_at_step[step] = area_weighted_average(view(annual_temperature, :, time_step), mesh)
+            average_temperature += mean_temperature_at_step[step]
         end
         average_temperature = average_temperature/num_steps_year
         mean_temperature_yearly[year] = average_temperature
@@ -96,6 +119,8 @@ function compute_evolution!(discretization, co2_concentration_yearly, mean_tempe
           println(year_start+year-1,"  ",average_temperature)
         end
     end
+
+    return (; year_at_step, mean_temperature_at_step, year_array, mean_temperature_yearly)
 end
 
 
