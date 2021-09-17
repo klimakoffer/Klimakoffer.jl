@@ -22,7 +22,7 @@ end
 function compute_equilibrium!(discretization; max_years=100, rel_error=2e-5, verbose=true)
     @unpack mesh, model, low_mat, upp_mat, perm_array, num_steps_year, annual_temperature, rhs, last_rhs  = discretization
     @unpack nx, dof = mesh
-
+    
     average_temperature = average_temperature_old = area_weighted_average(view(annual_temperature, :, num_steps_year), mesh)
 
     if verbose
@@ -61,6 +61,67 @@ function compute_equilibrium!(discretization; max_years=100, rel_error=2e-5, ver
     return average_temperature
 end
 
+"""
+    compute_evolution!(...)
+
+Compute the evolution of the mean temperature with varying CO2 levels.
+"""
+function compute_evolution!(discretization, co2_concentration_yearly, year_start; verbose=true)
+    @unpack mesh, model, low_mat, upp_mat, perm_array, num_steps_year, annual_temperature, rhs, last_rhs  = discretization
+    @unpack nx, dof = mesh
+    
+    if verbose
+      println("year","  ","Average Temperature")
+    end
+    
+    max_years = size(co2_concentration_yearly,1)
+
+    # Allocate output arrays
+    year_at_step = zeros(Float64,max_years*num_steps_year+1)
+    mean_temperature_at_step = zeros(Float64,max_years*num_steps_year+1)
+    year_array = zeros(Float64,max_years)
+    mean_temperature_yearly = zeros(Float64,max_years)
+
+    # Fill year arrays
+    year_at_step[1] = year_start + 0.21644  # The simulation starts at the vernal equinox
+    for year in 2:size(year_at_step,1)
+        year_at_step[year] = year_at_step[year-1] + 1.0/num_steps_year
+    end
+    year_array[1] = year_start + 0.71644    # The simulation starts at the vernal equinox
+    for year in 2:max_years
+        year_array[year] = year_array[year-1] + 1.0
+    end
+
+    # Initialize the temperature array
+    mean_temperature_at_step[1] = area_weighted_average(view(annual_temperature, :, num_steps_year), mesh)
+    step = 1
+
+    for year in 1:max_years
+        set_co2_concentration!(model, co2_concentration_yearly[year])
+        average_temperature = 0.0
+        for time_step in 1:num_steps_year
+            old_time_step = (time_step == 1) ? num_steps_year : time_step - 1
+            update_rhs!(rhs, mesh, num_steps_year, time_step, view(annual_temperature, :, old_time_step), model, last_rhs)
+                        
+            annual_temperature[:, time_step] = upp_mat\(low_mat\rhs[perm_array])
+
+            annual_temperature[1:nx, time_step] .= annual_temperature[1, time_step]
+            annual_temperature[dof-nx+1:dof, time_step] .= annual_temperature[dof, time_step]
+
+            # Compute mean temperature
+            step += 1
+            mean_temperature_at_step[step] = area_weighted_average(view(annual_temperature, :, time_step), mesh)
+            average_temperature += mean_temperature_at_step[step]
+        end
+        average_temperature = average_temperature/num_steps_year
+        mean_temperature_yearly[year] = average_temperature
+        if verbose
+          println(year_start+year-1,"  ",average_temperature)
+        end
+    end
+
+    return (; year_at_step, mean_temperature_at_step, year_array, mean_temperature_yearly)
+end
 
 
 """
@@ -174,14 +235,14 @@ function compute_matrix(mesh,num_steps_year,model)
     return matrix
 end
 
-function update_rhs!(rhs, mesh, num_steps_year, time_step, temperature, model, last_rhs)
+function update_rhs!(rhs, mesh, num_steps_year, time_step, temperature, model,  last_rhs)
     @unpack nx,ny = mesh
     @unpack heat_capacity, solar_forcing, radiative_cooling_co2 = model
     for j=1:ny
         for i=1:nx
             row_idx = index1d(i,j,nx)
 
-            rhs[row_idx] = 4 * heat_capacity[i,j] * temperature[row_idx] * num_steps_year  - last_rhs[row_idx] + solar_forcing[i,j,time_step] #- 2 * radiative_cooling_co2
+            rhs[row_idx] = 4 * heat_capacity[i,j] * temperature[row_idx] * num_steps_year  - last_rhs[row_idx] + solar_forcing[i,j,time_step] - 2 * radiative_cooling_co2
             if (time_step == 1)
                 rhs[row_idx] += solar_forcing[i,j,num_steps_year]
             else
