@@ -24,7 +24,7 @@ function Model(mesh, num_steps_year)
     co_albedo = 1.0 .- albedo
     
     ecc, ob, per = orbital_params(1950)
-    solar_forcing = calc_solar_forcing(co_albedo,ecc=ecc, ob=ob, per=per); #TODO: Add arguments [nx, ny, num_steps_year]
+    solar_forcing = calc_solar_forcing(co_albedo, ecc=ecc, ob=ob, per=per) #TODO: Add arguments [nx, ny, num_steps_year]
     
     return Model(diffusion_coeff,heat_capacity,albedo,solar_forcing,radiative_cooling_feedback)
 end
