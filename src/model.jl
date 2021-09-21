@@ -496,5 +496,5 @@ function perihelion(year)
 
   ψ = ψ_tilde/3600 * (year-1950) + ζ + sum(F/3600 .* sin.(deg2rad.(f/3600) * (year-1950) .+ deg2rad.(δ)))
 
-  return π + deg2rad(ψ)
+  return (π + deg2rad(ψ)) % (2*pi)
 end
