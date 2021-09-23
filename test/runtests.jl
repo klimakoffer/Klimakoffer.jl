@@ -32,7 +32,7 @@ EXAMPLES_DIR = joinpath(pathof(Klimakoffer) |> dirname |> dirname, "examples")
     println("")
     @test_nowarn include(joinpath(EXAMPLES_DIR, test_file))
 
-    @test isapprox(sol.mean_temperature_yearly[end], 14.563278065969344, atol=1e-12)
+    @test isapprox(sol.mean_temperature_yearly[end], 15.124711392136751, atol=1e-12)
   end
 
   @testset "Printing types to the REPL" begin
