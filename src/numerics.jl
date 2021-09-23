@@ -66,7 +66,7 @@ end
 
 Compute the evolution of the mean temperature with varying CO2 levels.
 """
-function compute_evolution!(discretization, co2_concentration_yearly, year_start; verbose=true)
+function compute_evolution!(discretization, co2_concentration_at_step, year_start, year_end; verbose=true)
     @unpack mesh, model, low_mat, upp_mat, perm_array, num_steps_year, annual_temperature, rhs, last_rhs  = discretization
     @unpack nx, dof = mesh
     
@@ -74,7 +74,7 @@ function compute_evolution!(discretization, co2_concentration_yearly, year_start
       println("year","  ","Average Temperature")
     end
     
-    max_years = size(co2_concentration_yearly,1)
+    max_years = year_end - year_start + 1
 
     # Allocate output arrays
     year_at_step = zeros(Float64,max_years*num_steps_year+1)
@@ -97,9 +97,9 @@ function compute_evolution!(discretization, co2_concentration_yearly, year_start
     step = 1
 
     for year in 1:max_years
-        set_co2_concentration!(model, co2_concentration_yearly[year])
         average_temperature = 0.0
         for time_step in 1:num_steps_year
+            set_co2_concentration!(model, co2_concentration_at_step[step])
             old_time_step = (time_step == 1) ? num_steps_year : time_step - 1
             update_rhs!(rhs, mesh, num_steps_year, time_step, view(annual_temperature, :, old_time_step), model, last_rhs)
                         
