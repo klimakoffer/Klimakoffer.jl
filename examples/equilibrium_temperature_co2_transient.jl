@@ -37,3 +37,17 @@ initial_temp = compute_equilibrium!(discretization; verbose = false)
 println("Start evolution of temperature...")
 sol = compute_evolution!(discretization, co2_concentration_at_step, year_start, year_end; verbose=true) 
 println("Is it getting hotter?")
+
+#= 
+# We can compare this data with the annual mean temperature reported by NASA
+# (NASA only reports the temperature anomaly, so we shift the data to match our model's temperature in year 1958)
+using Plots
+temp_array=readdlm(download("https://data.giss.nasa.gov/gistemp/graphs/graph_data/Global_Mean_Estimates_based_on_Land_and_Ocean_Data/graph.txt"); skipstart=5)
+ind = findfirst(temp_array[:,1] .== 1958)
+
+plot!(sol.year_array,sol.mean_temperature_yearly,label="Klimakoffer")
+plot!(sol.year_array,temp_array[ind:end,2].-temp_array[ind,2].+sol.mean_temperature_yearly[1],label="NASA") 
+plot!(sol.year_array,temp_array[ind:end,3].-temp_array[ind,2].+sol.mean_temperature_yearly[1],label="NASA smoothed")
+
+ylabel!("Mean annual temperature [°C]")
+xlabel!("year") =#
