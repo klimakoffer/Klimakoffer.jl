@@ -458,11 +458,11 @@ const perihelion_parameters_phase = [251.9025, 280.8325, 128.3057, 348.1074, 292
 
 # Eqn. 4 from Berger 1978, Long-Term Variations of daily Insolation and Quaternary Climatic Changes
 function e_sincos_pi(year)
-  M = eccentricity_parameters_amplitude
-  g = eccentricity_parameters_mean_rate
-  β = eccentricity_parameters_phase
+  M    = eccentricity_parameters_amplitude
+  g    = eccentricity_parameters_mean_rate
+  beta = eccentricity_parameters_phase
 
-  arg = deg2rad.(g/3600) * (year-1950) .+ deg2rad.(β)
+  arg = deg2rad.(g/3600) * (year-1950) .+ deg2rad.(beta)
 
   return sum(M .* sin.(arg)), sum(M .* cos.(arg))
 end
@@ -474,27 +474,27 @@ eccentricity(year) = eccentricity(year, e_sincos_pi(year)...)
 
 # Eqn. 1 from Berger 1978, Long-Term Variations of daily Insolation and Quaternary Climatic Changes
 function obliquity(year)
-  A = obliquity_parameters_amplitude
-  f = obliquity_parameters_mean_rate
-  δ = obliquity_parameters_phase
+  A     = obliquity_parameters_amplitude
+  f     = obliquity_parameters_mean_rate
+  delta = obliquity_parameters_phase
 
-  ε⁺ = 23.320556
+  epsilon_star = 23.320556
 
-  return deg2rad(ε⁺ + sum(A/3600 .* cos.(deg2rad.(f/3600) * (year-1950) .+ deg2rad.(δ))))
+  return deg2rad(epsilon_star + sum(A/3600 .* cos.(deg2rad.(f/3600) * (year-1950) .+ deg2rad.(delta))))
 end
 
 
 # Eqn. 6 from Berger 1978, Long-Term Variations of daily Insolation and Quaternary Climatic Changes
 function perihelion(year)
-  F = perihelion_parameters_amplitude
-  f = perihelion_parameters_mean_rate
-  δ = perihelion_parameters_phase
+  F     = perihelion_parameters_amplitude
+  f     = perihelion_parameters_mean_rate
+  delta = perihelion_parameters_phase
 
-  π = atan(e_sincos_pi(year)...)
-  ψ_tilde = 50.439273
-  ζ = 3.392506
+  pi_ = atan(e_sincos_pi(year)...)
+  psi_tilde = 50.439273
+  zeta = 3.392506
 
-  ψ = ψ_tilde/3600 * (year-1950) + ζ + sum(F/3600 .* sin.(deg2rad.(f/3600) * (year-1950) .+ deg2rad.(δ)))
+  psi = psi_tilde/3600 * (year-1950) + zeta + sum(F/3600 .* sin.(deg2rad.(f/3600) * (year-1950) .+ deg2rad.(delta)))
 
-  return (π + deg2rad(ψ)) % (2*pi)
+  return (pi_ + deg2rad(psi)) % (2*pi)
 end
