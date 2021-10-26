@@ -1,7 +1,7 @@
 using Interpolations;
 
 function showGif(field,title_in="Solar Forcing of the Earth: t = ",minval=-46.073107944313556,maxval=32.52216883281448)
-    World = read_geography(joinpath(@__DIR__,"..","The_World_Outline.dat"))*(-80)
+    World = read_geography(joinpath(@__DIR__,"..", "input", "The_World_Outline.dat"))*(-80)
     Plots.@gif for t in 1:size(field,3)
         title = title_in * lpad(string(floor(t*365/48)), 3, ' ') * " days"
     

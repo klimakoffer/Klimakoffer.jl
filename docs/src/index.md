@@ -4,6 +4,13 @@ Klimakoffer is about making the process of climate simulation comprehensible and
 
 **Note: Klimakoffer is currently in pre-alpha stage and anything might change at any time.**
 
+## Quickstart
+
+If you just want to try out Klimakoffer without installing anything (not even
+Julia) you, can launch a [Jupyter](https://jupyter.org/) notebook in your
+browser via [mybinder.org](https://mybinder.org/) by clicking on [here](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/klimakoffer/Klimakoffer.jl/HEAD?filepath=demo.ipynb).
+Alternatively, you can just *view* the notebook by clicking [here](https://raw.githubusercontent.com/jupyter/design/master/logos/Badges/nbviewer_badge.svg)](https://nbviewer.jupyter.org/github/klimakoffer/Klimakoffer.jl/blob/main/demo.ipynb).
+
 ## Installation
 If you have not yet installed Julia, please
 [follow the instructions for your operating system](https://julialang.org/downloads/platform/).
@@ -26,16 +33,86 @@ In the Julia REPL, first load the package Klimakoffer
 ```julia
 julia> using Klimakoffer
 ```
-Then, obtain the Answer to the Ultimate Question of Life, The Universe, and Everything by executing
+Then, set the number of time steps per year for the solver
 ```julia
-julia> answer()
-42
+julia> NT = 48 # this is a good default
+48
 ```
+Now you can create the mesh and model with
+```julia
+julia> mesh = Mesh()
+Mesh() with 128×65 degrees of freedom
+
+julia> model = Model(mesh, NT)
+Model() with 128×65 degrees of freedom
+```
+and combine everything into the discretization:
+```julia
+julia> discretization = Discretization(mesh, model, NT)
+Discretization() with 128×65 degrees of freedom
+```
+Finally, you can solve for the equilibrium temperature with
+```julia
+julia> GlobTemp = compute_equilibrium!(discretization)
+year  Average Temperature
+0  5.000000000000189
+1  9.004451135208686
+2  9.79480397404041
+3  10.891438923925572
+4  11.790964037289493
+5  12.481170727332831
+6  12.99908587812284
+7  13.384303292306818
+8  13.669812313384279
+9  13.88115978138856
+10  14.037575162852074
+11  14.153361080313475
+12  14.239103641567818
+13  14.30262469707876
+14  14.349702021948694
+15  14.384604941755951
+16  14.410489957304135
+17  14.429692258370507
+18  14.443940447343182
+19  14.454514784995716
+20  14.462363914213213
+21  14.468191036721114
+22  14.472517593123692
+23  14.47573035613406
+24  14.478116281193246
+25  14.479888312227843
+26  14.481204499489236
+27  14.482182168723126
+28  14.482908426404402
+29  14.483447950855698
+30  14.483848771972168
+31  14.484146559783808
+32  14.484367807186084
+33  14.484532192378012
+34  14.484654332676165
+35  14.48474508666562
+36  14.484812521111287
+37  14.484862629006399
+38  14.484899862855066
+39  14.484927530761858
+40  14.484948090641815
+41  14.484963368768746
+EQUILIBRIUM REACHED!
+14.484963368768746
+```
+
+For the impatient, this example can also be easily reproduced by just including
+the file `equilibrium_temperature_1950.jl` from the `examples` folder:
+```julia
+include(joinpath("examples", "equilibrium_temperature_1950.jl"))
+```
+A more complete tutorial can be found [here](https://nbviewer.org/urls/gist.githubusercontent.com/jmark/bd7d5b8ba88d1915e966c417b61d0637/raw/klimakoffer.ipynb).
 
 ## Authors
 Klimakoffer is maintained by
 [Gregor Gassner](https://www.mi.uni-koeln.de/NumSim/gassner),
 [Johannes Markert](https://www.mi.uni-koeln.de/NumSim/markert),
+[Christof Czernik](https://www.mi.uni-koeln.de/NumSim/christof-czernik),
 [Andrés Rueda-Ramírez](https://www.mi.uni-koeln.de/NumSim/dr-andres-rueda-ramirez),
 and
 [Michael Schlottke-Lakemper](https://www.mi.uni-koeln.de/NumSim/schlottke-lakemper)

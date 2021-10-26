@@ -18,8 +18,8 @@ function Model(mesh, num_steps_year; co2_concentration = 315.0) # co2_concentrat
     
     # Read parameters
     
-    geography = read_geography(joinpath(@__DIR__, "..", "The_World.dat"),nx,ny)
-    albedo    = read_albedo(joinpath(@__DIR__, "..", "albedo.dat"),nx,ny)
+    geography = read_geography(joinpath(@__DIR__, "..", "input", "The_World.dat"),nx,ny)
+    albedo    = read_albedo(joinpath(@__DIR__, "..", "input", "albedo.dat"),nx,ny)
     diffusion_coeff = calc_diffusion_coefficients(geography,nx,ny)
     heat_capacity, tau_land, tau_snow, tau_sea_ice, tau_mixed_layer = calc_heat_capacity(geography,radiative_cooling_feedback) # TODO: Remove unused variables
 

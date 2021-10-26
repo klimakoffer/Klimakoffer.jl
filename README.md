@@ -114,7 +114,7 @@ the file `equilibrium_temperature_1950.jl` from the `examples` folder:
 ```julia
 include(joinpath("examples", "equilibrium_temperature_1950.jl"))
 ```
-
+A more complete tutorial can be found [here](https://nbviewer.org/urls/gist.githubusercontent.com/jmark/bd7d5b8ba88d1915e966c417b61d0637/raw/klimakoffer.ipynb).
 
 ## Documentation
 There is not much there yet either, but
