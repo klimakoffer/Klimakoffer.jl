@@ -19,7 +19,11 @@ function Model(mesh, num_steps_year; co2_concentration = 315.0) # co2_concentrat
     # Read parameters
     
     geography = read_geography(joinpath(@__DIR__, "..", "input", "The_World.dat"),nx,ny)
-    albedo    = read_albedo(joinpath(@__DIR__, "..", "input", "albedo.dat"),nx,ny)
+    # Read data from input
+    #input_albedo = read_albedo(joinpath(@__DIR__, "..", "input", "albedo.dat"),nx,ny)
+    albedo = calc_albedo(geography,nx,ny)
+    # Calculate difference between input and calculation of albedo
+    #diff_albedo = input_albedo - albedo
     diffusion_coeff = calc_diffusion_coefficients(geography,nx,ny)
     heat_capacity, tau_land, tau_snow, tau_sea_ice, tau_mixed_layer = calc_heat_capacity(geography,radiative_cooling_feedback) # TODO: Remove unused variables
 
@@ -342,6 +346,30 @@ function read_albedo(filepath="albedo.dat",nlongitude=128,nlatitude=65)
   end
   return result
 end
+
+#Calculate the albedo depending on the geography
+function calc_albedo(geography,nlongitude=128,nlatitude=65)
+  result = zeros(Float64,nlongitude,nlatitude)
+  dtheta= pi/(nlatitude-1.0)
+
+  for j in 1:nlatitude
+    theta = pi/2.0-dtheta*(j-1)
+    sintheta = sin(theta)
+    legendrepol = (3*sintheta^2-1)/2
+    for i in 1:nlongitude
+      let geo = geography[i,j]
+        if geo == 1 # land
+          result[i,j] = 0.3+0.12*legendrepol
+        elseif geo == 2 # sea ice
+          result[i,j] = 0.6
+        elseif geo == 3 # snow cover
+          result[i,j] = 0.75
+        elseif geo in (5,6,7,8) # oceans
+          result[i,j] = 0.29+0.12*legendrepol
+        end
+      end
+    end
+  end
 
 function read_geography(filepath="The_World.dat",nlongitude=128,nlatitude=65)
   result = zeros(Int8,nlongitude,nlatitude)
