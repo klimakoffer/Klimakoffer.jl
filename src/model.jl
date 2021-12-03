@@ -353,7 +353,7 @@ function calc_albedo(geography,nlongitude=128,nlatitude=65)
   for j in 1:nlatitude
     theta = 0.5*pi-dtheta*(j-1)
     sintheta = sin(theta)
-    legendrepol = (3*sintheta^2-1)/2
+    legendrepol = (3*sintheta^2-1)*0.5
     for i in 1:nlongitude
       let geo = geography[i,j]
         if geo == 1 # land
