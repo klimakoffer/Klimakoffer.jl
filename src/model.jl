@@ -22,8 +22,6 @@ function Model(mesh, num_steps_year; co2_concentration = 315.0) # co2_concentrat
     # Read data from input
     #input_albedo = read_albedo(joinpath(@__DIR__, "..", "input", "albedo.dat"),nx,ny)
     albedo = calc_albedo(geography,nx,ny)
-    # Calculate difference between input and calculation of albedo
-    #diff_albedo = input_albedo - albedo
     diffusion_coeff = calc_diffusion_coefficients(geography,nx,ny)
     heat_capacity, tau_land, tau_snow, tau_sea_ice, tau_mixed_layer = calc_heat_capacity(geography,radiative_cooling_feedback) # TODO: Remove unused variables
 
