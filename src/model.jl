@@ -351,7 +351,7 @@ function calc_albedo(geography,nlongitude=128,nlatitude=65)
   dtheta= pi/(nlatitude-1.0)
 
   for j in 1:nlatitude
-    theta = pi/2.0-dtheta*(j-1)
+    theta = 0.5*pi-dtheta*(j-1)
     sintheta = sin(theta)
     legendrepol = (3*sintheta^2-1)/2
     for i in 1:nlongitude
