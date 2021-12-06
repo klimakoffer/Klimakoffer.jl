@@ -19,7 +19,7 @@ end
 * rel_error is the tolerance for global temperature equilibrium (default is 2e-5).
 * max_years is the maximum number of annual cycles to be computed when searching for equilibrium
 """
-function compute_equilibrium!(discretization; max_years=100, rel_error=2e-5, verbose=true)
+function compute_equilibrium!(discretization; max_years=100, rel_error=2e-5, verbose=true, update_heat_capacity = false,update_solar_forcing = false)
     @unpack mesh, model, low_mat, upp_mat, perm_array, num_steps_year, annual_temperature, rhs, last_rhs  = discretization
     @unpack nx, dof = mesh
     
@@ -33,6 +33,15 @@ function compute_equilibrium!(discretization; max_years=100, rel_error=2e-5, ver
     for year in 1:max_years
         average_temperature = 0.0
         for time_step in 1:num_steps_year
+            if update_heat_capacity == true && update_solar_forcing == true
+                update_model(model, mesh,true,true,false,true,true)
+                elseif update_heat_capacity == true && update_solar_forcing == false 
+                    update_model(model, mesh,true,false,false,true,false)   
+                elseif update_heat_capacity == false && update_solar_forcing == true
+                    update_model(model, mesh,true,true,false,false,true)  
+                elseif update_heat_capacity == false && update_solar_forcing == false 
+                    update_model(model, mesh,false,false,false,false,false)
+            end
             old_time_step = (time_step == 1) ? num_steps_year : time_step - 1
             update_rhs!(rhs, mesh, num_steps_year, time_step, view(annual_temperature, :, old_time_step), model, last_rhs)
                         
@@ -66,7 +75,7 @@ end
 
 Compute the evolution of the mean temperature with varying CO2 levels.
 """
-function compute_evolution!(discretization, co2_concentration_at_step, year_start, year_end; verbose=true)
+function compute_evolution!(discretization, co2_concentration_at_step, year_start, year_end; verbose=true, update_heat_capacity = false,update_solar_forcing = false)
     @unpack mesh, model, low_mat, upp_mat, perm_array, num_steps_year, annual_temperature, rhs, last_rhs  = discretization
     @unpack nx, dof = mesh
     
@@ -100,6 +109,15 @@ function compute_evolution!(discretization, co2_concentration_at_step, year_star
         average_temperature = 0.0
         for time_step in 1:num_steps_year
             set_co2_concentration!(model, co2_concentration_at_step[step])
+            if update_heat_capacity == true && update_solar_forcing == true
+                update_model(model, mesh,true,true,false,true,true)
+                elseif update_heat_capacity == true && update_solar_forcing == false 
+                    update_model(model, mesh,true,false,false,true,false)   
+                elseif update_heat_capacity == false && update_solar_forcing == true
+                    update_model(model, mesh,true,true,false,false,true)  
+                elseif update_heat_capacity == false && update_solar_forcing == false 
+                    update_model(model, mesh,false,false,false,false,false)
+            end
             old_time_step = (time_step == 1) ? num_steps_year : time_step - 1
             update_rhs!(rhs, mesh, num_steps_year, time_step, view(annual_temperature, :, old_time_step), model, last_rhs)
                         
