@@ -8,7 +8,6 @@ mutable struct Model
     radiative_cooling_feedback::Float64 # Outgoing long-wave radiation (feedback effects): models the water vapor cyces, lapse rate and cloud cover
     geography::Array{Int8,2}            
     co_albedo::Array{Float64,2}
-    solar::Array{Float64,2}
     compute_albedo::Bool  
   end
 
@@ -42,78 +41,16 @@ mutable struct Model
     ecc = eccentricity(1950)
     ob = obliquity(1950)
     per = perihelion(1950)
-     
-    
-    lambda,solar = calc_solar_forcing_params(nlatitude=ny, ntimesteps=num_steps_year, ecc=ecc, ob=ob, per=per)
-    solar_forcing = calc_solar_forcing(co_albedo, solar,ny,nx,num_steps_year)
+    solar_forcing = calc_solar_forcing(co_albedo, ecc=ecc, ob=ob, per=per) #TODO: Add arguments [nx, ny, num_steps_year]
   
     
-    return Model(diffusion_coeff, heat_capacity, albedo, solar_forcing, radiative_cooling_co2, radiative_cooling_feedback,geography,co_albedo,solar,compute_albedo)
+    return Model(diffusion_coeff, heat_capacity, albedo, solar_forcing, radiative_cooling_co2, radiative_cooling_feedback,geography,co_albedo,compute_albedo)
 end
 
 function set_co2_concentration!(model, co2_concentration)
     model.radiative_cooling_co2 = calc_radiative_cooling_co2(co2_concentration)
 end
 
-
-function update_model(model, mesh, update_geography=true, update_albedo=true, update_diffusion=true,
-  update_heat_capacity=true, update_solar_forcing=true)
-  @unpack nx,ny = mesh
-
-  if update_geography == true
-    set_geography!(model,mesh)
-  end
-
-  if update_albedo == true
-    set_albedo!(model,mesh)
-    set_co_albedo!(model)
-  end
-
-  if update_diffusion == true
-    set_diffusion_coeff!(model, mesh)
-  end
-  if update_heat_capacity == true
-    set_heat_capacity!(model)
-  end
-  if update_solar_forcing == true
-    set_solar_forcing!(model,discretization)
-  end
-end
-
-
-function set_geography!(model,mesh)
-  @unpack nx,ny = mesh
-  model.geography = read_geography(joinpath(@__DIR__, "..", "input", "The_World.dat"),nx,ny)
-end
-
-function set_albedo!(model,mesh)
-  @unpack nx,ny = mesh
-  if compute_albedo == false
-    model.albedo = read_albedo(joinpath(@__DIR__, "..", "input", "albedo.dat"),nx,ny)
-  else
-    model.albedo = calc_albedo(geography,nx,ny)
-  end 
-end
-
-function set_co_albedo!(model)
-  model.co_albedo = 1.0 .- albedo
-end
-
-function set_diffusion_coeff!(model, mesh)
-  @unpack nx,ny = mesh
-  model.diffusion_coeff = calc_diffusion_coefficients(geography,nx,ny)
-end
-
-function set_heat_capacity!(model)
-  model.heat_capacity = calc_heat_capacity(geography,radiative_cooling_feedback)
-end
-
-function set_solar_forcing!(model,discretization)
-  @unpack nx,ny = mesh
-  @unpack num_steps_year = discretization
-  solar = model.solar
-  model.solar_forcing = calc_solar_forcing(co_albedo, solar,nx,ny,num_steps_year)
-end
 
 
 Base.size(model::Model) = size(model.heat_capacity)
@@ -194,17 +131,20 @@ end
 
 """
 calc_solar_forcing()
-
 * Default s0 is 1371.685 [W/m²] (Current solar constant)
 * Default orbital parameters of correspond to year 1950 AD:
     ecc = 0.016740             
     ob  = 0.409253
     per = 1.783037  
 """
-
-function calc_solar_forcing_params(yr=0; nlatitude=65, ntimesteps=48, solar_cycle=false, s0=1371.685, orbital=false, ecc=0.016740, ob=0.409253, per=1.783037)
+function calc_solar_forcing(co_albedo, yr=0; solar_cycle=false, s0=1371.685, orbital=false, ecc=0.016740, ob=0.409253, per=1.783037)
   # Calculate the sin, cos, and tan of the latitudes of Earth from the
   # colatitudes, calculate the insolation
+
+  # TODO: Add as input arguments
+  nlatitude   = 65
+  nlongitude  = 128
+  ntimesteps  = 48
 
   dy = pi/(nlatitude-1.0)
   dt = 1.0 / ntimesteps
@@ -233,14 +173,15 @@ function calc_solar_forcing_params(yr=0; nlatitude=65, ntimesteps=48, solar_cycl
     lambda, solar = _calc_insolation(dt, ob, ecc, per, ntimesteps, nlatitude, siny, cosy, tany, s0)
   end
 
-  return lambda, solar
+  # TODO: Not needed??????
+  for j in 1:nlatitude
+    sum = 0.0
+    for ts in 1:ntimesteps
+      sum=sum+solar[j,ts]
+    end
+  end
 
-end
-
-
-function calc_solar_forcing(co_albedo, solar, nlatitude=65, nlongitude=128, ntimesteps=48)
- 
- solar_forcing = zeros(Float64,nlongitude,nlatitude,ntimesteps)
+  solar_forcing = zeros(Float64,nlongitude,nlatitude,ntimesteps)
   # calcualte the seasonal forcing
   for ts in 1:ntimesteps
     for j in 1:nlatitude
