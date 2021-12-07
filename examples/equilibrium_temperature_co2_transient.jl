@@ -12,7 +12,7 @@ year_end = 2020
 year_delta = year_end - year_start + 1
 
 # Read co2 concentration from NASA's data base
-co2_array=readdlm(download("ftp://aftp.cmdl.noaa.gov/products/trends/co2/co2_mm_mlo.txt"); skipstart=53)
+co2_array=readdlm(joinpath(@__DIR__,"..","input","co2_mm_mlo.txt"),comments=true)
 
 co2_concentration_at_step = zeros(Float64,year_delta*NT+1)
 step=0
@@ -38,11 +38,13 @@ println("Start evolution of temperature...")
 sol = compute_evolution!(discretization, co2_concentration_at_step, year_start, year_end; verbose=true) 
 println("Is it getting hotter?")
 
-#= 
+#=
 # We can compare this data with the annual mean temperature reported by NASA
 # (NASA only reports the temperature anomaly, so we shift the data to match our model's temperature in year 1958)
 using Plots
-temp_array=readdlm(download("https://data.giss.nasa.gov/gistemp/graphs/graph_data/Global_Mean_Estimates_based_on_Land_and_Ocean_Data/graph.txt"); skipstart=5)
+using Downloads
+
+temp_array=readdlm(Downloads.download("https://data.giss.nasa.gov/gistemp/graphs/graph_data/Global_Mean_Estimates_based_on_Land_and_Ocean_Data/graph.txt"); skipstart=5)
 ind = findfirst(temp_array[:,1] .== 1958)
 
 plot!(sol.year_array,sol.mean_temperature_yearly,label="Klimakoffer")
