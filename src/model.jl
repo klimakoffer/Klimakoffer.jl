@@ -38,7 +38,7 @@ mutable struct Model
     ob = obliquity(1950)
     per = perihelion(1950)
     
-    solar_forcing = calc_solar_forcing(nx, ny, num_steps_year, co_albedo, ecc=ecc, ob=ob, per=per) #TODO: Add arguments [nx, ny, num_steps_year]      
+    solar_forcing = calc_solar_forcing(nx, ny, num_steps_year, co_albedo, ecc=ecc, ob=ob, per=per)     
 
     
     return Model(diffusion_coeff, heat_capacity, albedo, solar_forcing, radiative_cooling_co2, radiative_cooling_feedback,co_albedo,compute_albedo)
