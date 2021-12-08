@@ -17,9 +17,8 @@ function Model(mesh, num_steps_year; co2_concentration = 315.0) # co2_concentrat
     radiative_cooling_co2 = calc_radiative_cooling_co2(co2_concentration)
     
     # Read parameters
-    
-    geography = read_geography(joinpath(@__DIR__, "..", "input", "The_World.dat"),nx,ny)
-    albedo    = read_albedo(joinpath(@__DIR__, "..", "input", "albedo.dat"),nx,ny)
+    geography = read_geography(joinpath(@__DIR__, "..", "input", string(nx, "x", ny), "The_World.dat"),nx,ny)
+    albedo    = read_albedo(joinpath(@__DIR__, "..", "input", string(nx, "x", ny), "albedo.dat"),nx,ny)
     diffusion_coeff = calc_diffusion_coefficients(geography,nx,ny)
     heat_capacity, tau_land, tau_snow, tau_sea_ice, tau_mixed_layer = calc_heat_capacity(geography,radiative_cooling_feedback) # TODO: Remove unused variables
 
@@ -28,7 +27,7 @@ function Model(mesh, num_steps_year; co2_concentration = 315.0) # co2_concentrat
     ecc = eccentricity(1950)
     ob = obliquity(1950)
     per = perihelion(1950)
-    solar_forcing = calc_solar_forcing(co_albedo, ecc=ecc, ob=ob, per=per) #TODO: Add arguments [nx, ny, num_steps_year]
+    solar_forcing = calc_solar_forcing(nx, ny, num_steps_year, co_albedo, ecc=ecc, ob=ob, per=per) #TODO: Add arguments [nx, ny, num_steps_year]      
     
     return Model(diffusion_coeff, heat_capacity, albedo, solar_forcing, radiative_cooling_co2, radiative_cooling_feedback)
 end
@@ -125,14 +124,14 @@ calc_solar_forcing()
     ob  = 0.409253
     per = 1.783037  
 """
-function calc_solar_forcing(co_albedo, yr=0; solar_cycle=false, s0=1371.685, orbital=false, ecc=0.016740, ob=0.409253, per=1.783037)
+function calc_solar_forcing(nx, ny, num_steps_year, co_albedo, yr=0; solar_cycle=false, s0=1371.685, orbital=false, ecc=0.016740, ob=0.409253, per=1.783037)
   # Calculate the sin, cos, and tan of the latitudes of Earth from the
   # colatitudes, calculate the insolation
 
   # TODO: Add as input arguments
-  nlatitude   = 65
-  nlongitude  = 128
-  ntimesteps  = 48
+  nlatitude   = ny
+  nlongitude  = nx
+  ntimesteps  = num_steps_year
 
   dy = pi/(nlatitude-1.0)
   dt = 1.0 / ntimesteps
@@ -332,7 +331,7 @@ end
 ## end
 
 
-function read_albedo(filepath="albedo.dat",nlongitude=128,nlatitude=65)
+function read_albedo(filepath="./input/128x65/albedo.dat",nlongitude=128,nlatitude=65)
   result = zeros(Float64,nlongitude,nlatitude)
   open(filepath) do fh
       for lat = 1:nlatitude
@@ -343,7 +342,7 @@ function read_albedo(filepath="albedo.dat",nlongitude=128,nlatitude=65)
   return result
 end
 
-function read_geography(filepath="The_World.dat",nlongitude=128,nlatitude=65)
+function read_geography(filepath="./input/128x65/The_World.dat",nlongitude=128,nlatitude=65)
   result = zeros(Int8,nlongitude,nlatitude)
   open(filepath) do fh
       for lat = 1:nlatitude
