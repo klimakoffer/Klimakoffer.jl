@@ -29,3 +29,4 @@ for years in year_start:year_end
   @printf "Global Temerature in year %4i with CO2 concentration %.2f [ppm] is T=%.3f °C" years co2_concentration_yearly[iter] mean_temperature_yearly[iter]
   println("")
 end
+GlobTemp = mean_temperature_yearly[year_end - year_start + 1]
