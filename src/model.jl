@@ -5,10 +5,12 @@ mutable struct Model
     albedo::Array{Float64,2}            # Albedo coefficient: depends on the geography (land, ocean, ice, etc.)
     solar_forcing::Array{Float64,3}     # Time-dependent incoming solar radiation: depends on the orbital parameters and the albedo
     radiative_cooling_co2::Float64      # Constant outgoing long-wave radiation: depends on the CO2 concentration 
-    radiative_cooling_feedback::Float64 # Outgoing long-wave radiation (feedback effects): models the water vapor cyces, lapse rate and cloud cover
-end
+    radiative_cooling_feedback::Float64 # Outgoing long-wave radiation (feedback effects): models the water vapor cyces, lapse rate and cloud cover           
+    co_albedo::Array{Float64,2}         # Absorbed radiatian coefficient: depends on the albedo
+    compute_albedo::Bool                # Attribute for deciding whether the albedo should be calculated instead of being read from a file
+  end
 
-function Model(mesh, num_steps_year; co2_concentration = 315.0) # co2_concentration in [ppm], default value from year 1950
+  function Model(mesh, num_steps_year; co2_concentration = 315.0, compute_albedo = false) # co2_concentration in [ppm], default value from year 1950
     @unpack nx,ny = mesh
     
     # Constants
@@ -18,7 +20,15 @@ function Model(mesh, num_steps_year; co2_concentration = 315.0) # co2_concentrat
     
     # Read parameters
     geography = read_geography(joinpath(@__DIR__, "..", "input", string(nx, "x", ny), "The_World.dat"),nx,ny)
-    albedo    = read_albedo(joinpath(@__DIR__, "..", "input", string(nx, "x", ny), "albedo.dat"),nx,ny)
+    compute_albedo = compute_albedo
+
+    if compute_albedo == false
+      albedo = read_albedo(joinpath(@__DIR__, "..", "input", string(nx, "x", ny), "albedo.dat"),nx,ny)
+    else
+
+      albedo = calc_albedo(geography,nx,ny)
+    end 
+
     diffusion_coeff = calc_diffusion_coefficients(geography,nx,ny)
     heat_capacity, tau_land, tau_snow, tau_sea_ice, tau_mixed_layer = calc_heat_capacity(geography,radiative_cooling_feedback) # TODO: Remove unused variables
 
@@ -27,9 +37,11 @@ function Model(mesh, num_steps_year; co2_concentration = 315.0) # co2_concentrat
     ecc = eccentricity(1950)
     ob = obliquity(1950)
     per = perihelion(1950)
-    solar_forcing = calc_solar_forcing(nx, ny, num_steps_year, co_albedo, ecc=ecc, ob=ob, per=per) #TODO: Add arguments [nx, ny, num_steps_year]      
     
-    return Model(diffusion_coeff, heat_capacity, albedo, solar_forcing, radiative_cooling_co2, radiative_cooling_feedback)
+    solar_forcing = calc_solar_forcing(nx, ny, num_steps_year, co_albedo, ecc=ecc, ob=ob, per=per) #TODO: Add arguments [nx, ny, num_steps_year]      
+
+    
+    return Model(diffusion_coeff, heat_capacity, albedo, solar_forcing, radiative_cooling_co2, radiative_cooling_feedback,co_albedo,compute_albedo)
 end
 
 function set_co2_concentration!(model, co2_concentration)
@@ -114,10 +126,8 @@ function _calc_insolation(dt, ob, ecc, per, nt, nlat, siny, cosy, tany, s0)
   return lambda, solar
 end
 
-
 """
 calc_solar_forcing()
-
 * Default s0 is 1371.685 [W/m²] (Current solar constant)
 * Default orbital parameters of correspond to year 1950 AD:
     ecc = 0.016740             
@@ -336,8 +346,34 @@ function read_albedo(filepath="./input/128x65/albedo.dat",nlongitude=128,nlatitu
   open(filepath) do fh
       for lat = 1:nlatitude
           if eof(fh) break end
-          result[:,lat] = parse.(Float64,split(strip(readline(fh) ),r"\s+"))
+         result[:,lat] = parse.(Float64,split(strip(readline(fh) ),r"\s+"))
+     end
+ end
+ return result
+end
+
+#Calculate the albedo depending on the geography
+function calc_albedo(geography,nlongitude=128,nlatitude=65)
+  result = zeros(Float64,nlongitude,nlatitude)
+  dtheta= pi/(nlatitude-1.0)
+
+  for j in 1:nlatitude
+    theta = 0.5*pi-dtheta*(j-1)
+    sintheta = sin(theta)
+    legendrepol = (3*sintheta^2-1)*0.5
+    for i in 1:nlongitude
+      let geo = geography[i,j]
+        if geo == 1 # land
+          result[i,j] = 0.3+0.12*legendrepol
+        elseif geo == 2 # sea ice
+          result[i,j] = 0.6
+        elseif geo == 3 # snow cover
+          result[i,j] = 0.75
+        elseif geo in (5,6,7,8) # oceans
+          result[i,j] = 0.29+0.12*legendrepol
+        end
       end
+    end
   end
   return result
 end
