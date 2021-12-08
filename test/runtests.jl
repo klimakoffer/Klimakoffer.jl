@@ -32,7 +32,7 @@ EXAMPLES_DIR = joinpath(pathof(Klimakoffer) |> dirname |> dirname, "examples")
     println("")
     @test_nowarn include(joinpath(EXAMPLES_DIR, test_file))
 
-    @test isapprox(GlobTemp, 14.484963368768978, atol=1e-12)
+    @test isapprox(GlobTemp, 14.495916499275724, atol=1e-12)
   end
 
   test_file = "transient_temperature_co2.txt"
