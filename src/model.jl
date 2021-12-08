@@ -5,10 +5,9 @@ mutable struct Model
     albedo::Array{Float64,2}            # Albedo coefficient: depends on the geography (land, ocean, ice, etc.)
     solar_forcing::Array{Float64,3}     # Time-dependent incoming solar radiation: depends on the orbital parameters and the albedo
     radiative_cooling_co2::Float64      # Constant outgoing long-wave radiation: depends on the CO2 concentration 
-    radiative_cooling_feedback::Float64 # Outgoing long-wave radiation (feedback effects): models the water vapor cyces, lapse rate and cloud cover
-    geography::Array{Int8,2}            
-    co_albedo::Array{Float64,2}
-    compute_albedo::Bool  
+    radiative_cooling_feedback::Float64 # Outgoing long-wave radiation (feedback effects): models the water vapor cyces, lapse rate and cloud cover           
+    co_albedo::Array{Float64,2}         # Absorbed radiatian coefficient: depends on the albedo
+    compute_albedo::Bool                # Attribute for deciding whether the albedo should be calculated instead of being read from a file
   end
 
   function Model(mesh, num_steps_year; co2_concentration = 315.0, compute_albedo = false) # co2_concentration in [ppm], default value from year 1950
@@ -44,7 +43,7 @@ mutable struct Model
     solar_forcing = calc_solar_forcing(co_albedo, ecc=ecc, ob=ob, per=per) #TODO: Add arguments [nx, ny, num_steps_year]
   
     
-    return Model(diffusion_coeff, heat_capacity, albedo, solar_forcing, radiative_cooling_co2, radiative_cooling_feedback,geography,co_albedo,compute_albedo)
+    return Model(diffusion_coeff, heat_capacity, albedo, solar_forcing, radiative_cooling_co2, radiative_cooling_feedback,co_albedo,compute_albedo)
 end
 
 function set_co2_concentration!(model, co2_concentration)
