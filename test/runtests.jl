@@ -15,6 +15,16 @@ EXAMPLES_DIR = joinpath(pathof(Klimakoffer) |> dirname |> dirname, "examples")
     @test isapprox(GlobTemp, 14.484963368768746, atol=1e-12)
   end
 
+  test_file = "equilibrium_temperature_1950_256x129.jl" 
+  @testset "$test_file" begin
+    println("")
+    println("Running ",test_file)
+    println("")
+    @test_nowarn include(joinpath(EXAMPLES_DIR, test_file))
+
+    @test isapprox(GlobTemp, 14.534799232746172, atol=1e-12)
+  end
+
   test_file = "equilibrium_temperature_albedo.jl" 
   @testset "$test_file" begin
     println("")
