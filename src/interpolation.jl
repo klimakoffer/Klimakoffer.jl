@@ -43,7 +43,7 @@ function nn_interpolation(array_in, nlongitude=256)
      col[end] = round(height_in) 
 
      width_positions = round.(Int64, row)  
-     col .+= 0.0000001  # Korekktur fürs Runden, da round(2.5) sonst 2 ergibt ???!!!
+     col .+= 0.0000001  # correction for function round, because round(2.5) equals 2 ???!!!
      height_positions = round.(Int64, col)            
      
      wide = 1
@@ -72,7 +72,7 @@ function upscale_map(nlongitude=256)
           mkdir(string("./input/", nlongitude, "x", nlatitude))
      end
      if !isfile(string("./input/", nlongitude, "x", nlatitude,"/The_World.dat"))
-          touch(string("./input/", nlongitude, "x", nlatitude,"/The_World.dat")) #NO: evtl nach anderer "create file"-Funktion umschauen
+          touch(string("./input/", nlongitude, "x", nlatitude,"/The_World.dat")) 
      end 
 
      open(string("./input/", nlongitude, "x", nlatitude,"/The_World.dat"),"w") do file 
@@ -207,7 +207,7 @@ function get_outline_from_map(nlongitude=128)
 
      for b = 1:nlongitude
           for h = 1:nlatitude
-               if world[b,h] == 1 || world[b,h] == 3 # 1 = land, 3 = ice
+               if world[b,h] == 1 || world[b,h] == 3 # 1 = land, 3 = permanent snow cover
 
                     if b == 1 && h == 1 
                          if !(world[b+1,h] == 1 && world[b,h+1] == 1)

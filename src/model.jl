@@ -138,7 +138,6 @@ function calc_solar_forcing(nx, ny, num_steps_year, co_albedo, yr=0; solar_cycle
   # Calculate the sin, cos, and tan of the latitudes of Earth from the
   # colatitudes, calculate the insolation
 
-  # TODO: Add as input arguments
   nlatitude   = ny
   nlongitude  = nx
   ntimesteps  = num_steps_year
