@@ -33,15 +33,18 @@ function compute_equilibrium!(discretization; max_years=100, rel_error=2e-5, ver
     for year in 1:max_years
         average_temperature = 0.0
         for time_step in 1:num_steps_year
-            if update_heat_capacity == true && update_solar_forcing == true
-                update_model(model, mesh,true,true,false,true,true)
+            if mod(time_step,4) == 1 && time_step >=5
+                if update_heat_capacity == true && update_solar_forcing == true
+                 update_model(model, mesh,time_step, true,true,false,true,true)
                 elseif update_heat_capacity == true && update_solar_forcing == false 
-                    update_model(model, mesh,true,false,false,true,false)   
+                    update_model(model, mesh, time_step, true,false,false,true,false)   
                 elseif update_heat_capacity == false && update_solar_forcing == true
-                    update_model(model, mesh,true,true,false,false,true)  
+                    update_model(model, mesh, time_step, true,true,false,false,true)  
                 elseif update_heat_capacity == false && update_solar_forcing == false 
-                    update_model(model, mesh,false,false,false,false,false)
-            end
+                    update_model(model, mesh, time_step, false,false,false,false,false)
+                end
+            end    
+
             old_time_step = (time_step == 1) ? num_steps_year : time_step - 1
             update_rhs!(rhs, mesh, num_steps_year, time_step, view(annual_temperature, :, old_time_step), model, last_rhs)
                         
@@ -109,14 +112,16 @@ function compute_evolution!(discretization, co2_concentration_at_step, year_star
         average_temperature = 0.0
         for time_step in 1:num_steps_year
             set_co2_concentration!(model, co2_concentration_at_step[step])
-            if update_heat_capacity == true && update_solar_forcing == true
-                update_model(model, mesh,true,true,false,true,true)
+            if mod(time_step,4) == 1 && time_step >=5
+                if update_heat_capacity == true && update_solar_forcing == true
+                 update_model(model, mesh, time_step, true,true,false,true,true)
                 elseif update_heat_capacity == true && update_solar_forcing == false 
-                    update_model(model, mesh,true,false,false,true,false)   
+                    update_model(model, mesh, time_step, true,false,false,true,false)   
                 elseif update_heat_capacity == false && update_solar_forcing == true
-                    update_model(model, mesh,true,true,false,false,true)  
+                    update_model(model, mesh, time_step, true,true,false,false,true)  
                 elseif update_heat_capacity == false && update_solar_forcing == false 
-                    update_model(model, mesh,false,false,false,false,false)
+                    update_model(model, mesh, time_step, false,false,false,false,false)
+                end
             end
             old_time_step = (time_step == 1) ? num_steps_year : time_step - 1
             update_rhs!(rhs, mesh, num_steps_year, time_step, view(annual_temperature, :, old_time_step), model, last_rhs)
