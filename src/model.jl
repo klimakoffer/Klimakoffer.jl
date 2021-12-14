@@ -1,3 +1,4 @@
+using DelimitedFiles
 
 mutable struct Model
     diffusion_coeff::Array{Float64,2}   # Diffusion coefficient: depends on the sine of latitude
@@ -9,10 +10,12 @@ mutable struct Model
     co_albedo::Array{Float64,2}         # Absorbed radiatian coefficient: depends on the albedo
     compute_albedo::Bool                # Attribute for deciding whether the albedo should be calculated instead of being read from a file
     geography::Array{Int8,2}
-    solar::Array{Float64,2}    
+    solar::Array{Float64,2}
+    compute_sea_ice_extent::Bool        # Attribute for deciding whether sea ice extent should be calculated for the geography
+    year::Int64    
   end
 
-  function Model(mesh, num_steps_year; co2_concentration = 315.0, compute_albedo = false) # co2_concentration in [ppm], default value from year 1950
+  function Model(mesh, num_steps_year; co2_concentration = 315.0, compute_albedo = false, compute_sea_ice_extent = false, sea_ice_extent_year = 1979) # co2_concentration in [ppm], default value from year 1950
     @unpack nx,ny = mesh
     
     # Constants
@@ -23,8 +26,10 @@ mutable struct Model
     # Read parameters
     
     geography = read_geography(joinpath(@__DIR__, "..", "input", "The_World.dat"),nx,ny)
-  
-  
+    
+    compute_sea_ice_extent = compute_sea_ice_extent
+    year = sea_ice_extent_year
+
     compute_albedo = compute_albedo
     if compute_albedo == false
       albedo = read_albedo(joinpath(@__DIR__, "..", "input", "albedo.dat"),nx,ny)
@@ -32,7 +37,8 @@ mutable struct Model
   
       albedo = calc_albedo(geography,nx,ny)
     end 
-  
+
+
   
     diffusion_coeff = calc_diffusion_coefficients(geography,nx,ny)
     heat_capacity, tau_land, tau_snow, tau_sea_ice, tau_mixed_layer = calc_heat_capacity(geography,radiative_cooling_feedback) # TODO: Remove unused variables
@@ -45,10 +51,10 @@ mutable struct Model
      
     
     lambda,solar = calc_solar_forcing_params(nlatitude=ny, ntimesteps=num_steps_year, ecc=ecc, ob=ob, per=per)
-    solar_forcing = calc_solar_forcing(co_albedo, solar,ny,nx,num_steps_year)
+    solar_forcing = calc_solar_forcing(co_albedo, solar,nx,ny,num_steps_year)
   
     
-    return Model(diffusion_coeff, heat_capacity, albedo, solar_forcing, radiative_cooling_co2, radiative_cooling_feedback,co_albedo,compute_albedo,geography,solar)
+    return Model(diffusion_coeff, heat_capacity, albedo, solar_forcing, radiative_cooling_co2, radiative_cooling_feedback,co_albedo,compute_albedo,geography,solar, compute_sea_ice_extent,year)
   end
   
   function set_co2_concentration!(model, co2_concentration)
@@ -56,12 +62,11 @@ mutable struct Model
   end
   
   
-  function update_model(model, mesh, update_geography=true, update_albedo=true, update_diffusion=true,
-  update_heat_capacity=true, update_solar_forcing=true)
+  function update_model(model, mesh, time_step, update_geography=true, update_albedo=true, update_diffusion=true,update_heat_capacity=true, update_solar_forcing=true)
   @unpack nx,ny = mesh
   
   if update_geography == true
-    set_geography!(model,mesh)
+    set_geography!(model,mesh, time_step)
   end
   
   if update_albedo == true
@@ -76,43 +81,48 @@ mutable struct Model
     set_heat_capacity!(model)
   end
   if update_solar_forcing == true
-    set_solar_forcing!(model,discretization)
+    set_solar_forcing!(model, mesh)
   end
   end
   
   
-  function set_geography!(model,mesh)
+  function set_geography!(model, mesh, time_step)
   @unpack nx,ny = mesh
-  model.geography = read_geography(joinpath(@__DIR__, "..", "input", "The_World.dat"),nx,ny)
+  if model.compute_sea_ice_extent == false
+    model.geography = read_geography(joinpath(@__DIR__, "..", "input", "The_World.dat"),nx,ny)
+  else  
+     annual_sea_ice_extent = read_sea_ice_extent_N(model.year)
+     model.geography = calc_geography_per_month_extent(model.geography,annual_sea_ice_extent, time_step, nx, ny)
+  end   
   end
   
   function set_albedo!(model,mesh)
   @unpack nx,ny = mesh
-  if compute_albedo == false
+  if model.compute_albedo == false
     model.albedo = read_albedo(joinpath(@__DIR__, "..", "input", "albedo.dat"),nx,ny)
   else
-    model.albedo = calc_albedo(geography,nx,ny)
+    model.albedo = calc_albedo(model.geography,nx,ny)
   end 
   end
   
   function set_co_albedo!(model)
-  model.co_albedo = 1.0 .- albedo
+  model.co_albedo = 1.0 .- model.albedo
   end
   
   function set_diffusion_coeff!(model, mesh)
   @unpack nx,ny = mesh
-  model.diffusion_coeff = calc_diffusion_coefficients(geography,nx,ny)
+  model.diffusion_coeff = calc_diffusion_coefficients(model.geography,nx,ny)
   end
   
   function set_heat_capacity!(model)
-  model.heat_capacity = calc_heat_capacity(geography,radiative_cooling_feedback)
+  heatcap, tau_land, tau_snow, tau_sea_ice, tau_mixed_layer = calc_heat_capacity(model.geography, model.radiative_cooling_feedback)
+  model.heat_capacity = heatcap
   end
   
-  function set_solar_forcing!(model,discretization)
+  function set_solar_forcing!(model, mesh)
   @unpack nx,ny = mesh
-  @unpack num_steps_year = discretization
   solar = model.solar
-  model.solar_forcing = calc_solar_forcing(co_albedo, solar,nx,ny,num_steps_year)
+  model.solar_forcing = calc_solar_forcing(model.co_albedo, solar, nx, ny)
   end
   
   
@@ -238,7 +248,7 @@ mutable struct Model
   end
   
   
-  function calc_solar_forcing(co_albedo, solar, nlatitude=65, nlongitude=128, ntimesteps=48)
+  function calc_solar_forcing(co_albedo, solar, nlongitude=128, nlatitude=65, ntimesteps=48)
   
   solar_forcing = zeros(Float64,nlongitude,nlatitude,ntimesteps)
   # calcualte the seasonal forcing
@@ -595,4 +605,110 @@ mutable struct Model
   
   return (pi_ + deg2rad(psi)) % (2*pi)
   end
+
+
+
+# possible years to pick annual sea ice extend for the northern hemisphere : 1979 to 2021
+# returns a vector with sea ice extend per month from January to December
+
+function read_sea_ice_extent_N(year=1979)
+
+  matrix = readdlm(joinpath(@__DIR__,"..","input","N_ALL_extent_v3.0.dat"),comments=true)
+  yearindex = findfirst(isequal(year),matrix[:,1])
+  annual_sea_ice_extent = matrix[yearindex,2:13]
+
+  return annual_sea_ice_extent
+end
+
+
+#function calc_change_rate(annual_sea_ice_extent,month)
+#i = month
+#change_rate= annual_sea_ice_extent[i]/annual_sea_ice_extent[i-1]
+#return change_rate 
+#end  
+
+
+"""
+calc_geography_per_month_extent()
+Determines a new geography matrix by determining sea ice extent with a monthly rate of change
+and mapping extent or reduction to adjacent sea ice cells and ocean cells on the northern hemisphere.
+
+"""
+
+function calc_geography_per_month_extent(geography,annual_sea_ice_extent, time_step, nlongitude=128, nlatitude =65)
+
+  month::Int64 = 0
+
+  for nt in 1:time_step
+   if mod(nt,4) == 1
+   month +=1
+   end
+  end
   
+
+  if month == 0 || month == 1
+    return geography
+  else
+
+   change_rate = annual_sea_ice_extent[month]/annual_sea_ice_extent[month-1]
+
+  
+   # collect submatrix and indices for the northern hemisphere
+
+   nlat::Int64 = (nlatitude-1)*0.5
+   N = geography[:,1:nlat]
+   IndN = CartesianIndices(N)
+   Ifirst, Ilast = first(IndN), last(IndN)
+   I1 = oneunit(Ifirst)
+
+
+   # get all sea ice cells for the northern hemispehre and determine how many cells will be affected by the extent/reduction
+
+   sea_ice_index = findall(isequal(2),N)
+   old_counter = size(sea_ice_index,1)
+   new_counter = old_counter*change_rate
+   new_cells = abs(floor(Int,new_counter - old_counter))
+
+
+   # case for an extent of sea ice
+   # adjacent ocean cells will turn to sea ice cells
+
+   if new_counter > old_counter
+      for I in IndN
+          if N[I[1], I[2]] == 2
+              if new_cells == 0
+                  break
+              else
+                  for J in max(Ifirst, I-I1):min(Ilast, I+I1)
+                      if N[J] in (5,6,7,8)
+                          geography[J[1], J[2]] = 2
+                          new_cells -= 1
+                      end
+                  end
+              end
+          end
+      end
+   # case for a reduction of sea ice
+   # adjacent sea ice cells will turn to ocean cells
+   elseif new_counter < old_counter
+      for I in IndN
+          if N[I[1], I[2]] == 2
+              geography[I[1], I[2]] = 2
+              if new_cells == 0
+                  break
+              else
+                  for J in max(Ifirst, I-I1):min(Ilast, I+I1)
+                      if N[J] == 2
+                          geography[J[1], J[2]] = 5
+                          new_cells -= 1
+                      end
+                  end
+              end
+          end
+      end 
+   end
+
+   return geography
+  end
+
+end    
