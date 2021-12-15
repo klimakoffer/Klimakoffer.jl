@@ -112,13 +112,13 @@ function bilinear_interpolation(array_in, nlongitude =256)
      high = 1
      wide = 1
 
-     for b = 1 : width_out 
+     for w = 1 : width_out 
           high = 1 
           for h = 1 : height_out
 
                # the coordinates from the current pixels/knot
                y = 1 + (h-1) * ratio_h  
-               x = 1 + (b-1) * ratio_w  
+               x = 1 + (w-1) * ratio_w  
                
                # calculate coordinates from surrounding pixels
                x_floor = floor(Int64, x)                    
