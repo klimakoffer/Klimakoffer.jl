@@ -5,8 +5,8 @@ function upscale_inputs(nlongitude=256)
 
      println(string("Erstelle Maps für die Auflösung: ", nlongitude, "x",nlatitude))
      upscale_albedo(nlongitude)
-     upscale_map(nlongitude)
-     get_outline_from_map(nlongitude)
+     upscale_world(nlongitude)
+     get_outline_from_world(nlongitude)
 end 
 
 """
@@ -61,21 +61,20 @@ function nn_interpolation(array_in, nlongitude=256)
      return array_out
 end
 
-function upscale_map(nlongitude=256) 
+function upscale_world(dirpath = "./input/world/", filename = "The_World_128x65.dat",nlongitude=256) 
 
-     world = Klimakoffer.read_geography(string("./input/", 128, "x", 65,"/The_World.dat"), 128, 65)
+     world = Klimakoffer.read_geography(string(dirpath, filename), 128, 65)
      (old_long, old_lat) = size(world)
      upscaled_map = nn_interpolation(world, nlongitude)
      (nlongitude, nlatitude) = size(upscaled_map)
 
-     if !isdir(string("./input/", nlongitude, "x", nlatitude))
-          mkdir(string("./input/", nlongitude, "x", nlatitude))
-     end
-     if !isfile(string("./input/", nlongitude, "x", nlatitude,"/The_World.dat"))
-          touch(string("./input/", nlongitude, "x", nlatitude,"/The_World.dat")) 
+     new_fname = string("The_World", nlongitude, "x", nlatitude, ".dat")
+
+     if !isfile(string(dirpath, new_fname))
+          touch(string(dirpath, new_fname))
      end 
 
-     open(string("./input/", nlongitude, "x", nlatitude,"/The_World.dat"),"w") do file 
+     open(string(dirpath, new_fname),"w") do file 
           for lat = 1:nlatitude
                for long = 1:nlongitude
                     write(file, string(upscaled_map[long,lat]))
@@ -83,8 +82,6 @@ function upscale_map(nlongitude=256)
                write(file, "\n")
            end
      end
-
-     println(string("Upscale The_World.dat from ", old_long, "x", old_lat," to ", nlongitude,"x", nlatitude))
 end
 
 """
@@ -168,21 +165,20 @@ end
 
 * scales up the albedo map 
 """
-function upscale_albedo(nlongitude=256)
+function upscale_albedo(dirpath = "./input/albedo/", filename = "albedo_128x65.dat", nlongitude=256)
 
-     albedo = Klimakoffer.read_albedo(string("./input/", 128, "x", 65,"/albedo.dat"), 128, 65)
+     albedo = Klimakoffer.read_albedo(string(dirpath, filename), 128, 65)
      (oldlong, oldlat) = size(albedo)
      upscaled_albedo = bilinear_interpolation(albedo, nlongitude)
      (nlongitude, nlatitude) = size(upscaled_albedo)
+     
+     new_fname = string("albedo", nlongitude, "x", nlatitude, ".dat")
 
-     if !isdir(string("./input/", nlongitude, "x", nlatitude))
-          mkdir(string("./input/", nlongitude, "x", nlatitude))
-     end
-     if !isfile(string("./input/", nlongitude, "x", nlatitude,"/albedo.dat"))
-          touch(string("./input/", nlongitude, "x", nlatitude,"/albedo.dat"))
+     if !isfile(string(dirpath, new_fname))
+          touch(string(dirpath, new_fname))
      end 
 
-     open(string("./input/", nlongitude, "x", nlatitude,"/albedo.dat"),"w") do file 
+     open(string(dirpath, new_fname),"w") do file 
           for lat = 1:nlatitude
                for long = 1:nlongitude
                     write(file, string("      ",upscaled_albedo[long,lat]))
@@ -190,7 +186,6 @@ function upscale_albedo(nlongitude=256)
                write(file,"\n")
            end
      end
-     println(string("Upscale albedo.dat from ", oldlong, "x", oldlat," to ", nlongitude,"x", nlatitude))
 end
 
 """
@@ -198,10 +193,10 @@ end
 
 * get the outline from an existing map, so the coast is presented by ones 
 """
-function get_outline_from_map(nlongitude=128)
+function get_outline_from_world(dirpath = "./input/world/", filename = "The_World_128x65.dat",nlongitude=128)
 
      nlatitude = convert(Int64, nlongitude/2+1)
-     world = Klimakoffer.read_geography(string("./input/", nlongitude, "x", nlatitude,"/The_World.dat"), nlongitude, nlatitude)
+     world = Klimakoffer.read_geography(string(dirpath, filename), nlongitude, nlatitude)
      world = clear_map(world)
      outline = Array{Int64}(zeros((nlongitude, nlatitude)))
 
@@ -259,14 +254,13 @@ function get_outline_from_map(nlongitude=128)
           end
      end
 
-     if !isdir(string("./input/", nlongitude, "x", nlatitude))
-          mkdir(string("./input/", nlongitude, "x", nlatitude))
-     end
-     if !isfile(string("./input/", nlongitude, "x", nlatitude,"/The_World_Outline.dat"))
-          touch(string("./input/", nlongitude, "x", nlatitude,"/The_World_Outline.dat"))
+     new_fp = string(dirpath, "The_World_Outline_", nlongitude, "x", nlatitude, ".dat")
+
+     if !isfile(new_fp)
+          touch(new_fp)
      end 
 
-     open(string("./input/", nlongitude, "x", nlatitude,"/The_World_Outline.dat"),"w") do file 
+     open(new_fp,"w") do file 
           for lat = 1:nlatitude
                for long = 1:nlongitude
                     write(file, string(outline[long,lat]))
