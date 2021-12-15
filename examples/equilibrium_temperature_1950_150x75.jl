@@ -2,7 +2,7 @@ using Klimakoffer
 
 NT = 48 
 
-mesh = Mesh(256)
+mesh = Mesh(150)
 
 co2_concentration = 315.0
 
