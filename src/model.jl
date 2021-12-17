@@ -19,11 +19,11 @@ mutable struct Model
     radiative_cooling_co2 = calc_radiative_cooling_co2(co2_concentration)
     
     # Read parameters
-    geography = read_geography(joinpath(@__DIR__, "..", "input", string(nx, "x", ny), "The_World.dat"),nx,ny)
+    geography = read_geography(joinpath(@__DIR__, "..", "input/world/", "The_World", string(nx, "x", ny), ".dat"),nx,ny)
     compute_albedo = compute_albedo
 
     if compute_albedo == false
-      albedo = read_albedo(joinpath(@__DIR__, "..", "input", string(nx, "x", ny), "albedo.dat"),nx,ny)
+      albedo = read_albedo(joinpath(@__DIR__, "..", "input/albedo/", "albedo", string(nx, "x", ny), ".dat"),nx,ny)
     else
 
       albedo = calc_albedo(geography,nx,ny)
