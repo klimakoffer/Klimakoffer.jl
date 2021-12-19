@@ -645,28 +645,42 @@ function calc_geography_per_month_extent(geography,annual_sea_ice_extent, time_s
    end
   end
   
+  nlat::Int64 = (nlatitude-1)*0.5
+  geography_start = read_geography(joinpath(@__DIR__, "..", "input", "The_World.dat"),128,65)
+  geo = geography_start[:,1:nlat]
+  sea_ice_index_unit = size(findall(isequal(2),geo),1)/annual_sea_ice_extent[1]
+  
+  
+
 
   if month == 0 || month == 1
     return geography
   else
 
-   change_rate = annual_sea_ice_extent[month]/annual_sea_ice_extent[month-1]
+   
+
+   # change_rate = abs(annual_sea_ice_extent[month]-annual_sea_ice_extent[month-1])
 
   
    # collect submatrix and indices for the northern hemisphere
 
-   nlat::Int64 = (nlatitude-1)*0.5
-   N = geography[:,1:nlat]
+
+
+   G = geography[:,1:nlat]
+   N = reverse(G, dims = 2)
+   IndG = CartesianIndices(G)
    IndN = CartesianIndices(N)
+   Gfirst, Glast = first(IndG), last(IndG)
    Ifirst, Ilast = first(IndN), last(IndN)
+   G1 = oneunit(Gfirst)
    I1 = oneunit(Ifirst)
 
 
    # get all sea ice cells for the northern hemispehre and determine how many cells will be affected by the extent/reduction
 
-   sea_ice_index = findall(isequal(2),N)
+   sea_ice_index = findall(isequal(2),G)
    old_counter = size(sea_ice_index,1)
-   new_counter = old_counter*change_rate
+   new_counter = sea_ice_index_unit*annual_sea_ice_extent[month]
    new_cells = abs(floor(Int,new_counter - old_counter))
 
 
@@ -674,40 +688,46 @@ function calc_geography_per_month_extent(geography,annual_sea_ice_extent, time_s
    # adjacent ocean cells will turn to sea ice cells
 
    if new_counter > old_counter
-      for I in IndN
-          if N[I[1], I[2]] == 2
-              if new_cells == 0
+      for I in IndG
+          if G[I[1], I[2]] == 2
+              if new_cells <= 0
                   break
               else
-                  for J in max(Ifirst, I-I1):min(Ilast, I+I1)
-                      if N[J] in (5,6,7,8)
-                          geography[J[1], J[2]] = 2
+                  for J in max(Gfirst, I-G1):min(Glast, I+G1)
+                      if G[J] in (5,6,7,8)
+                          G[J[1], J[2]] = 2
                           new_cells -= 1
+                         
                       end
                   end
               end
           end
       end
+      geography[:,1:nlat] = G
    # case for a reduction of sea ice
    # adjacent sea ice cells will turn to ocean cells
    elseif new_counter < old_counter
       for I in IndN
-          if N[I[1], I[2]] == 2
-              geography[I[1], I[2]] = 2
-              if new_cells == 0
+          if N[I[1], I[2]] == 2 && new_cells > 0
+              N[I[1], I[2]] = 5
+              new_cells -= 1
+              if new_cells <= 0
                   break
               else
                   for J in max(Ifirst, I-I1):min(Ilast, I+I1)
                       if N[J] == 2
-                          geography[J[1], J[2]] = 5
+                          N[J[1], J[2]] = 5
                           new_cells -= 1
                       end
                   end
-              end
+  
+              end  
+              
           end
       end 
+      geography[:,1:nlat] = reverse(N, dims = 2)
    end
-
+ 
    return geography
   end
 
