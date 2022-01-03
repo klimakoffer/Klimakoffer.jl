@@ -25,4 +25,5 @@ include("model.jl")
 include("discretization.jl")
 include("numerics.jl")
 include("interpolation.jl") 
+include("imageprocessing.jl")
 end # module
