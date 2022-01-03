@@ -10,7 +10,7 @@ using FileIO
 * has nearly the same inputs as convert_image_to_world but there is a directorypath instead of a filepath of one image and
 * a targetpath, where you save the 12 maps 
 """
-function images_to_maps(dirsourcepath="/Users/otzi/Desktop/Bachelorarbeit/NASA_Bilder/",targetpath = "./input/world/monthly_maps/",blurred=1, imglong=5400, imglat=2700, nlongitude=128, limit_ocean = 10, limit_land= 140, limit_seaice=205 )
+function images_to_maps(dirsourcepath="/Users/otzi/Desktop/Bachelorarbeit/NASA_Bilder/",targetpath = "./input/world/monthly_maps/", blurred=10, imglong=5400, imglat=2700, nlongitude=128, limit_ocean = 10, limit_land= 140, limit_seaice=205 )
     
     if isdir(dirsourcepath)
         for (root, dirs, files) in walkdir(dirsourcepath)
@@ -41,7 +41,7 @@ end
 """
 
 # TODO: gaussian blur einbinden 
-function convert_image_to_world(imagefile, blurred=1, imglong=5400, imglat=2700, nlongitude=128, limit_ocean = 10, limit_land= 190, limit_seaice=210)
+function convert_image_to_world(imagefile, blurred=10, imglong=5400, imglat=2700, nlongitude=128, limit_ocean = 10, limit_land= 190, limit_seaice=210)
 
     world = FileIO.load(imagefile)
     world = transpose(world) # without to transpose the NASA images, we would create a symmetrically mirrored map
@@ -51,7 +51,7 @@ function convert_image_to_world(imagefile, blurred=1, imglong=5400, imglat=2700,
     grayworld = Gray.(world)
     grayworld = real.(grayworld) .*255 # Julia's gray values multiplied by 255 to get common grayscale from 0 (black) to 255 (white)
 
-    if blurred!=1
+    if blurred!=0
         grayworld = imfilter(grayworld, Kernel.gaussian(blurred))
     end
 
@@ -102,8 +102,3 @@ function save_world_by_month(array_in, img_filename, dirpath)
     end
 end
 
-function test_gaussian_blur(imagefile="/Users/otzi/Desktop/Bachelorarbeit/world5400x2700.jpg")
-    world = FileIO.load(imagefile)
-    blurred_world = imfilter(world, Kernel.gaussian(10))
-    save(File{format"JPEG"}("/Users/otzi/Desktop/Bachelorarbeit/blurredworld.jpeg"), blurred_world)
-end
