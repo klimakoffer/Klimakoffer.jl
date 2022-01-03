@@ -41,7 +41,7 @@ end
 """
 
 # TODO: gaussian blur einbinden 
-function convert_image_to_world(imagefile, imglong=5400, imglat=2700, nlongitude=128, limit_ocean = 10, limit_land= 140, limit_seaice=205)
+function convert_image_to_world(imagefile, imglong=5400, imglat=2700, nlongitude=128, limit_ocean = 10, limit_land= 190, limit_seaice=210)
 
     world = FileIO.load(imagefile)
     world = transpose(world) # without to transpose the NASA images, we would create a symmetrically mirrored map
