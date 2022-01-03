@@ -4,9 +4,9 @@ function upscale_inputs(nlongitude=256)
      nlatitude = convert(Int64,nlongitude/2+1)
 
      println(string("Erstelle Maps für die Auflösung: ", nlongitude, "x",nlatitude))
-     upscale_albedo(nlongitude)
-     upscale_world(nlongitude)
-     get_outline_from_world(nlongitude)
+     upscale_albedo("./input/albedo/", "albedo128x65.dat", nlongitude)
+     upscale_world("./input/world/", "The_World128x65.dat", nlongitude)
+     get_outline_from_world("./input/world/", string("The_World",nlongitude,"x", nlatitude,".dat"), nlongitude)
 end 
 
 """
@@ -43,7 +43,7 @@ function nn_interpolation(array_in, nlongitude=256)
      col[end] = round(height_in) 
 
      width_positions = round.(Int64, row)  
-     col .+= 0.0000001  # correction for function round, because round(2.5) equals 2 ???!!!
+     # col .+= 0.0000001  -> correction for function round, because round(2.5) equals 2 ???!!!
      height_positions = round.(Int64, col)            
      
      wide = 1
@@ -61,7 +61,7 @@ function nn_interpolation(array_in, nlongitude=256)
      return array_out
 end
 
-function upscale_world(dirpath = "./input/world/", filename = "The_World_128x65.dat",nlongitude=256) 
+function upscale_world(dirpath = "./input/world/", filename = "The_World128x65.dat",nlongitude=256) 
 
      world = Klimakoffer.read_geography(string(dirpath, filename), 128, 65)
      (old_long, old_lat) = size(world)
@@ -69,6 +69,10 @@ function upscale_world(dirpath = "./input/world/", filename = "The_World_128x65.
      (nlongitude, nlatitude) = size(upscaled_map)
 
      new_fname = string("The_World", nlongitude, "x", nlatitude, ".dat")
+
+     if !isdir(dirpath)
+          mkdir(dirpath)
+     end
 
      if !isfile(string(dirpath, new_fname))
           touch(string(dirpath, new_fname))
@@ -165,7 +169,7 @@ end
 
 * scales up the albedo map 
 """
-function upscale_albedo(dirpath = "./input/albedo/", filename = "albedo_128x65.dat", nlongitude=256)
+function upscale_albedo(dirpath = "./input/albedo/", filename = "albedo128x65.dat", nlongitude=256)
 
      albedo = Klimakoffer.read_albedo(string(dirpath, filename), 128, 65)
      (oldlong, oldlat) = size(albedo)
@@ -174,6 +178,10 @@ function upscale_albedo(dirpath = "./input/albedo/", filename = "albedo_128x65.d
      
      new_fname = string("albedo", nlongitude, "x", nlatitude, ".dat")
 
+     if !isdir(dirpath)
+          mkdir(dirpath)
+     end 
+     
      if !isfile(string(dirpath, new_fname))
           touch(string(dirpath, new_fname))
      end 
@@ -193,7 +201,7 @@ end
 
 * get the outline from an existing map, so the coast is presented by ones 
 """
-function get_outline_from_world(dirpath = "./input/world/", filename = "The_World_128x65.dat",nlongitude=128)
+function get_outline_from_world(dirpath = "./input/world/", filename = "The_World128x65.dat",nlongitude=128)
 
      nlatitude = convert(Int64, nlongitude/2+1)
      world = Klimakoffer.read_geography(string(dirpath, filename), nlongitude, nlatitude)
@@ -254,7 +262,7 @@ function get_outline_from_world(dirpath = "./input/world/", filename = "The_Worl
           end
      end
 
-     new_fp = string(dirpath, "The_World_Outline_", nlongitude, "x", nlatitude, ".dat")
+     new_fp = string(dirpath, "The_World_Outline", nlongitude, "x", nlatitude, ".dat")
 
      if !isfile(new_fp)
           touch(new_fp)
@@ -291,3 +299,20 @@ function clear_map(map)
      return map
 end 
 
+"""
+    print_partition_of_map(...)
+
+* for each land cover option (1-8) in the map from the filepath this function prints out the partition in percentage
+"""
+function print_partition_of_map(filepath="./input/world/The_World128x65.dat", nlong=128, nlat=65)
+
+     map = Klimakoffer.read_geography(filepath, nlong, nlat)
+     println(string("land:                 ", 100*count(i->(i==1), map)/(nlong*nlat), "%"))
+     println(string("perennial sea ice:    ", 100*count(i->(i==2), map)/(nlong*nlat), "%"))
+     println(string("permanent snow cover: ", 100*count(i->(i==3), map)/(nlong*nlat), "%"))
+     println(string("lakes, inland seas:   ", 100*count(i->(i==4), map)/(nlong*nlat), "%"))
+     println(string("ocean:                ", 100*count(i->(i in (5,6,7,8)), map)/(nlong*nlat), "%"))
+     println("-----------------------------------------")
+     println(string("Insgesamt:            ", 100*((count(i->(i==1), map)+count(i->(i==2), map)+count(i->(i==3), map)+count(i->(i==4), map)+count(i->(i==5), map))/(nlong*nlat)), "%"))
+end
+ 

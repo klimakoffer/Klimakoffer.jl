@@ -25,6 +25,16 @@ EXAMPLES_DIR = joinpath(pathof(Klimakoffer) |> dirname |> dirname, "examples")
     @test isapprox(GlobTemp, 14.967892384136475, atol=1e-12)
   end
 
+  test_file = "land_coverage_from_scaled_map.jl" 
+  @testset "$test_file" begin
+    println("")
+    println("Running ",test_file)
+    println("")
+    @test_nowarn include(joinpath(EXAMPLES_DIR, test_file))
+
+    @test isapprox(landcover, 23.341346153846153, atol=1) # aktuell ist es der Wert der originalen 128x65 Karte aus dem Klimakoffer
+  end
+
   test_file = "equilibrium_temperature_albedo.jl" 
   @testset "$test_file" begin
     println("")

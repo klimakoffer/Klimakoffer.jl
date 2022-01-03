@@ -340,7 +340,7 @@ end
 ## end
 
 
-function read_albedo(filepath="./input/128x65/albedo.dat",nlongitude=128,nlatitude=65)
+function read_albedo(filepath="./input/albedo/albedo128x65.dat",nlongitude=128,nlatitude=65)
   result = zeros(Float64,nlongitude,nlatitude)
   open(filepath) do fh
       for lat = 1:nlatitude
@@ -377,7 +377,7 @@ function calc_albedo(geography,nlongitude=128,nlatitude=65)
   return result
 end
 
-function read_geography(filepath="./input/128x65/The_World.dat",nlongitude=128,nlatitude=65)
+function read_geography(filepath="./input/world/The_World128x65.dat",nlongitude=128,nlatitude=65)
   result = zeros(Int8,nlongitude,nlatitude)
   open(filepath) do fh
       for lat = 1:nlatitude
