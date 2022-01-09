@@ -45,6 +45,16 @@ EXAMPLES_DIR = joinpath(pathof(Klimakoffer) |> dirname |> dirname, "examples")
     @test isapprox(sol.mean_temperature_yearly[end], 15.124711386303053, atol=1e-12)
   end
 
+  test_file = "equilibrium_temperature_sea_ice_extent.jl" 
+  @testset "$test_file" begin
+    println("")
+    println("Running ",test_file)
+    println("")
+    @test_nowarn include(joinpath(EXAMPLES_DIR, test_file))
+
+    @test isapprox(GlobTemp, 15.199769560515287, atol=1e-12)
+  end
+
   @testset "Printing types to the REPL" begin
     mesh = Mesh()
     @test_nowarn show(stdout, mesh)
