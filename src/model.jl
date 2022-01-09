@@ -9,9 +9,9 @@ mutable struct Model
     radiative_cooling_feedback::Float64 # Outgoing long-wave radiation (feedback effects): models the water vapor cyces, lapse rate and cloud cover           
     co_albedo::Array{Float64,2}         # Absorbed radiatian coefficient: depends on the albedo
     compute_albedo::Bool                # Attribute for deciding whether the albedo should be calculated instead of being read from a file
-    geography::Array{Int8,2}
-    solar::Array{Float64,2}
-    compute_sea_ice_extent::Bool        # Attribute for deciding whether sea ice extent should be calculated for the geography
+    geography::Array{Int8,2}            # Monthly land-sea-snow/sea ice distribution: depends on initial geography input if compute_sea_ice_extent is true
+    solar::Array{Float64,2}             # Solar irradiance: depends on the orbital parameters
+    compute_sea_ice_extent::Bool        # Attribute for deciding whether sea ice extent should be calculated for the geography or read from given maps
     year::Int64    
   end
 
@@ -62,6 +62,8 @@ mutable struct Model
   end
   
   
+  # Gives the possibility to interactively decide which parameters should be updated in a simulation
+
   function update_model(model, mesh, time_step, update_geography=true, update_albedo=true, update_diffusion=true,update_heat_capacity=true, update_solar_forcing=true)
   @unpack nx,ny = mesh
   
@@ -425,6 +427,7 @@ mutable struct Model
   end
   
   #Calculate the albedo depending on the geography
+
   function calc_albedo(geography,nlongitude=128,nlatitude=65)
   result = zeros(Float64,nlongitude,nlatitude)
   dtheta= pi/(nlatitude-1.0)
@@ -608,12 +611,12 @@ mutable struct Model
 
 
 
-# possible years to pick annual sea ice extend for the northern hemisphere : 1979 to 2021
-# returns a vector with sea ice extend per month from January to December
+# possible years to pick annual sea ice extent for the northern hemisphere : 1979 to 2020
+# returns a vector with sea ice extent per month from March to February
 
 function read_sea_ice_extent_N(year=1979)
 
-  matrix = readdlm(joinpath(@__DIR__,"..","input","N_ALL_extent_v3.0.dat"),comments=true)
+  matrix = readdlm(joinpath(@__DIR__,"..","input/sea_ice_data/","N_ALL_extent_v3.0.dat"),comments=true)
   yearindex = findfirst(isequal(year),matrix[:,1])
   annual_sea_ice_extent = matrix[yearindex,2:13]
 
@@ -621,17 +624,11 @@ function read_sea_ice_extent_N(year=1979)
 end
 
 
-#function calc_change_rate(annual_sea_ice_extent,month)
-#i = month
-#change_rate= annual_sea_ice_extent[i]/annual_sea_ice_extent[i-1]
-#return change_rate 
-#end  
-
 
 """
 calc_geography_per_month_extent()
 Determines a new geography matrix by determining sea ice extent with a monthly rate of change
-and mapping extent or reduction to adjacent sea ice cells and ocean cells on the northern hemisphere.
+and mapping extent or reduction to adjacent sea ice cells and ocean cells on the Northern Hemisphere.
 
 """
 
@@ -639,11 +636,24 @@ function calc_geography_per_month_extent(geography,annual_sea_ice_extent, time_s
 
   month::Int64 = 0
 
-  for nt in 1:time_step
-   if mod(nt,4) == 1
-   month +=1
-   end
-  end
+ # Gets the right month when the simulation starts at the vernal equinox
+ if time_step in (1,46,47,48)
+  month = 1
+  elseif mod(time_step,4) == 2
+    month = 1
+    for nt in 1:time_step
+      if mod(nt,4) == 1
+        month +=1
+      end
+    end   
+ end
+
+  # Gets the right month when the simulation starts with the first week of January 
+  #for nt in 1:time_step
+  # if mod(nt,4) == 1
+  # month +=1
+  # end
+  #end
   
   nlat::Int64 = (nlatitude-1)*0.5
   geography_start = read_geography(joinpath(@__DIR__, "..", "input", "The_World.dat"),128,65)
@@ -652,19 +662,12 @@ function calc_geography_per_month_extent(geography,annual_sea_ice_extent, time_s
   
   
 
-
   if month == 0 || month == 1
+    geography = geography_start
     return geography
   else
-
-   
-
-   # change_rate = abs(annual_sea_ice_extent[month]-annual_sea_ice_extent[month-1])
-
   
-   # collect submatrix and indices for the northern hemisphere
-
-
+   # collect submatrix and indices for the Northern Hemisphere
 
    G = geography[:,1:nlat]
    N = reverse(G, dims = 2)
@@ -676,7 +679,7 @@ function calc_geography_per_month_extent(geography,annual_sea_ice_extent, time_s
    I1 = oneunit(Ifirst)
 
 
-   # get all sea ice cells for the northern hemispehre and determine how many cells will be affected by the extent/reduction
+   # get all sea ice cells for the Northern Hemispehre and determine how many cells will be affected by the extent/reduction
 
    sea_ice_index = findall(isequal(2),G)
    old_counter = size(sea_ice_index,1)
@@ -704,6 +707,7 @@ function calc_geography_per_month_extent(geography,annual_sea_ice_extent, time_s
           end
       end
       geography[:,1:nlat] = G
+
    # case for a reduction of sea ice
    # adjacent sea ice cells will turn to ocean cells
    elseif new_counter < old_counter
