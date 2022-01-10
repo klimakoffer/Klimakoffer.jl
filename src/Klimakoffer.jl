@@ -25,4 +25,10 @@ include("model.jl")
 include("discretization.jl")
 include("numerics.jl")
 
+function foo()
+  printf("Not used, thus should not be covered by tests.")
+
+  return 42
+end
+
 end # module
