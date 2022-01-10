@@ -32,7 +32,7 @@ EXAMPLES_DIR = joinpath(pathof(Klimakoffer) |> dirname |> dirname, "examples")
     println("")
     @test_nowarn include(joinpath(EXAMPLES_DIR, test_file))
 
-    @test isapprox(landcover, 23.341346153846153, atol=1) # aktuell ist es der Wert der originalen 128x65 Karte aus dem Klimakoffer
+    @test isapprox(landcover, 23.341346153846153, atol=2.5) # aktuell ist es der Wert der originalen 128x65 Karte aus dem Klimakoffer
   end
 
   test_file = "equilibrium_temperature_albedo.jl" 
