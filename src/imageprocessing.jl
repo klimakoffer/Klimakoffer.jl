@@ -77,7 +77,7 @@ function save_world_by_month(array_in, img_filename, dirpath)
         mkdir(dirpath)
     end 
     
-    # Because our simulation begins at 21. march, we have to label the march with 1 
+    # Because our simulation begins at 21 March, we have to label March with 1 
     months = Dict([("jan", 11), ("feb", 12), ("mar", 1), ("apr", 2), ("may", 3), ("jun", 4), ("jul", 5), ("aug", 6), ("sep", 7), ("oct", 8), ("nov", 9), ("dec", 10)])
     month = 0
     for (key, val) in months
