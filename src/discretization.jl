@@ -1,6 +1,6 @@
 
-struct Discretization{DecType}
-  lu_dec::DecType                       # LU decomposition of system matrix
+struct Discretization{DecompositionType}
+  lu_decomposition::DecompositionType                       # LU decomposition of system matrix
   num_steps_year::Int64                 # Number of time steps per astronomical year
   mesh::Mesh
   model::Model                          # Physical model
