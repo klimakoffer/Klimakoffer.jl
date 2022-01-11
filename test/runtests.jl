@@ -12,7 +12,7 @@ EXAMPLES_DIR = joinpath(pathof(Klimakoffer) |> dirname |> dirname, "examples")
     println("")
     @test_nowarn include(joinpath(EXAMPLES_DIR, test_file))
 
-    @test isapprox(GlobTemp, 14.484963368768746, atol=1e-12)
+    @test isapprox(GlobTemp, 14.484963368770806, atol=1e-12)
   end
 
   test_file = "equilibrium_temperature_albedo.jl" 
@@ -22,7 +22,7 @@ EXAMPLES_DIR = joinpath(pathof(Klimakoffer) |> dirname |> dirname, "examples")
     println("")
     @test_nowarn include(joinpath(EXAMPLES_DIR, test_file))
 
-    @test isapprox(GlobTemp, 15.007699256043672, atol=1e-12)
+    @test isapprox(GlobTemp, 15.007699256045628, atol=1e-12)
   end
 
   test_file = "equilibrium_temperature_co2.jl" 
@@ -32,7 +32,7 @@ EXAMPLES_DIR = joinpath(pathof(Klimakoffer) |> dirname |> dirname, "examples")
     println("")
     @test_nowarn include(joinpath(EXAMPLES_DIR, test_file))
 
-    @test isapprox(GlobTemp, 14.495916499275724, atol=1e-12)
+    @test isapprox(GlobTemp, 14.495916499277554, atol=1e-12)
   end
 
   test_file = "transient_temperature_co2.txt"
@@ -42,7 +42,7 @@ EXAMPLES_DIR = joinpath(pathof(Klimakoffer) |> dirname |> dirname, "examples")
     println("")
     @test_nowarn include(joinpath(EXAMPLES_DIR, test_file))
 
-    @test isapprox(sol.mean_temperature_yearly[end], 15.124711386303053, atol=1e-12)
+    @test isapprox(sol.mean_temperature_yearly[end], 15.12471138630498, atol=1e-12)
   end
 
   @testset "Printing types to the REPL" begin
