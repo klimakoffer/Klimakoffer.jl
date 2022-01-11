@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Home · Klimakoffer.jl</title><script data-outdated-warner src="assets/warner.js"></script><link rel="canonical" href="https://klimakoffer.github.io/Klimakoffer.jl/dev/"/><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href>Klimakoffer.jl</a></span></div><form class="docs-search" action="search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li class="is-active"><a class="tocitem" href>Home</a><ul class="internal"><li><a class="tocitem" href="#Quickstart"><span>Quickstart</span></a></li><li><a class="tocitem" href="#Installation"><span>Installation</span></a></li><li><a class="tocitem" href="#Usage"><span>Usage</span></a></li><li><a class="tocitem" href="#Authors"><span>Authors</span></a></li><li><a class="tocitem" href="#License-and-contributing"><span>License and contributing</span></a></li></ul></li><li><a class="tocitem" href="reference/">Reference</a></li><li><a class="tocitem" href="license/">License</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Home</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Home</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/klimakoffer/Klimakoffer.jl/blob/master/docs/src/index.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Klimakoffer.jl"><a class="docs-heading-anchor" href="#Klimakoffer.jl">Klimakoffer.jl</a><a id="Klimakoffer.jl-1"></a><a class="docs-heading-anchor-permalink" href="#Klimakoffer.jl" title="Permalink"></a></h1><p>Klimakoffer is about making the process of climate simulation comprehensible and fun.</p><p><strong>Note: Klimakoffer is currently in pre-alpha stage and anything might change at any time.</strong></p><h2 id="Quickstart"><a class="docs-heading-anchor" href="#Quickstart">Quickstart</a><a id="Quickstart-1"></a><a class="docs-heading-anchor-permalink" href="#Quickstart" title="Permalink"></a></h2><p>If you just want to try out Klimakoffer without installing anything (not even Julia) you, can launch a <a href="https://jupyter.org/">Jupyter</a> notebook in your browser via <a href="https://mybinder.org/">mybinder.org</a> by clicking on <a href="https://mybinder.org/badge_logo.svg">here</a>](https://mybinder.org/v2/gh/klimakoffer/Klimakoffer.jl/HEAD?filepath=demo.ipynb). Alternatively, you can just <em>view</em> the notebook by clicking <a href="https://raw.githubusercontent.com/jupyter/design/master/logos/Badges/nbviewer_badge.svg">here</a>](https://nbviewer.jupyter.org/github/klimakoffer/Klimakoffer.jl/blob/main/demo.ipynb).</p><h2 id="Installation"><a class="docs-heading-anchor" href="#Installation">Installation</a><a id="Installation-1"></a><a class="docs-heading-anchor-permalink" href="#Installation" title="Permalink"></a></h2><p>If you have not yet installed Julia, please <a href="https://julialang.org/downloads/platform/">follow the instructions for your operating system</a>. Klimakoffer works with Julia v1.7.</p><p>To obtain Klimakoffer, clone the repository and use the Julia package manager <code>Pkg</code> to install all dependencies:</p><pre><code class="language-shell hljs">git clone git@github.com:klimakoffer/Klimakoffer.jl.git
+cd Klimakoffer.jl
+julia --project=@. -e &#39;import Pkg; Pkg.instantiate()&#39;</code></pre><p>Then, start Julia with the <code>--project</code> flag set to your local clone, e.g.,</p><pre><code class="language-shell hljs">julia --project=.</code></pre><h2 id="Usage"><a class="docs-heading-anchor" href="#Usage">Usage</a><a id="Usage-1"></a><a class="docs-heading-anchor-permalink" href="#Usage" title="Permalink"></a></h2><p>In the Julia REPL, first load the package Klimakoffer</p><pre><code class="language-julia hljs">julia&gt; using Klimakoffer</code></pre><p>Then, set the number of time steps per year for the solver</p><pre><code class="language-julia hljs">julia&gt; NT = 48 # this is a good default
+48</code></pre><p>Now you can create the mesh and model with</p><pre><code class="language-julia hljs">julia&gt; mesh = Mesh()
+Mesh() with 128×65 degrees of freedom
+
+julia&gt; model = Model(mesh, NT)
+Model() with 128×65 degrees of freedom</code></pre><p>and combine everything into the discretization:</p><pre><code class="language-julia hljs">julia&gt; discretization = Discretization(mesh, model, NT)
+Discretization() with 128×65 degrees of freedom</code></pre><p>Finally, you can solve for the equilibrium temperature with</p><pre><code class="language-julia hljs">julia&gt; GlobTemp = compute_equilibrium!(discretization)
+year  Average Temperature
+0  5.000000000000189
+1  9.004451135208686
+2  9.79480397404041
+3  10.891438923925572
+4  11.790964037289493
+5  12.481170727332831
+6  12.99908587812284
+7  13.384303292306818
+8  13.669812313384279
+9  13.88115978138856
+10  14.037575162852074
+11  14.153361080313475
+12  14.239103641567818
+13  14.30262469707876
+14  14.349702021948694
+15  14.384604941755951
+16  14.410489957304135
+17  14.429692258370507
+18  14.443940447343182
+19  14.454514784995716
+20  14.462363914213213
+21  14.468191036721114
+22  14.472517593123692
+23  14.47573035613406
+24  14.478116281193246
+25  14.479888312227843
+26  14.481204499489236
+27  14.482182168723126
+28  14.482908426404402
+29  14.483447950855698
+30  14.483848771972168
+31  14.484146559783808
+32  14.484367807186084
+33  14.484532192378012
+34  14.484654332676165
+35  14.48474508666562
+36  14.484812521111287
+37  14.484862629006399
+38  14.484899862855066
+39  14.484927530761858
+40  14.484948090641815
+41  14.484963368768746
+EQUILIBRIUM REACHED!
+14.484963368768746</code></pre><p>For the impatient, this example can also be easily reproduced by just including the file <code>equilibrium_temperature_1950.jl</code> from the <code>examples</code> folder:</p><pre><code class="language-julia hljs">include(joinpath(&quot;examples&quot;, &quot;equilibrium_temperature_1950.jl&quot;))</code></pre><p>A more complete tutorial can be found <a href="https://nbviewer.org/urls/gist.githubusercontent.com/jmark/bd7d5b8ba88d1915e966c417b61d0637/raw/klimakoffer.ipynb">here</a>.</p><h2 id="Authors"><a class="docs-heading-anchor" href="#Authors">Authors</a><a id="Authors-1"></a><a class="docs-heading-anchor-permalink" href="#Authors" title="Permalink"></a></h2><p>Klimakoffer is maintained by <a href="https://www.mi.uni-koeln.de/NumSim/gassner">Gregor Gassner</a>, <a href="https://www.mi.uni-koeln.de/NumSim/markert">Johannes Markert</a>, <a href="https://www.mi.uni-koeln.de/NumSim/christof-czernik">Christof Czernik</a>, <a href="https://www.mi.uni-koeln.de/NumSim/dr-andres-rueda-ramirez">Andrés Rueda-Ramírez</a>, and <a href="https://www.mi.uni-koeln.de/NumSim/schlottke-lakemper">Michael Schlottke-Lakemper</a> (all University of Cologne, Germany), who are also the principal developers.</p><h2 id="License-and-contributing"><a class="docs-heading-anchor" href="#License-and-contributing">License and contributing</a><a id="License-and-contributing-1"></a><a class="docs-heading-anchor-permalink" href="#License-and-contributing" title="Permalink"></a></h2><p>Klimakoffer is licensed under the MIT license (see <a href="license/#License">License</a>).</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="reference/">Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.10 on <span class="colophon-date" title="Wednesday 15 December 2021 10:04">Wednesday 15 December 2021</span>. Using Julia version 1.6.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
