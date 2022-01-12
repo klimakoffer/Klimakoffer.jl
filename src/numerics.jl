@@ -36,7 +36,8 @@ function compute_equilibrium!(discretization; max_years=100, rel_error=2e-5, ver
             old_time_step = (time_step == 1) ? num_steps_year : time_step - 1
             update_rhs!(rhs, mesh, num_steps_year, time_step, view(annual_temperature, :, old_time_step), model, last_rhs)
                         
-            annual_temperature[:, time_step] = lu_decomposition \ rhs
+            # Use in-place operation `ldiv!` instead of `\` to avoid allocations
+            ldiv!(view(annual_temperature, :, time_step), lu_decomposition, rhs)
 
             annual_temperature[1:nx, time_step] .= annual_temperature[1, time_step]
             annual_temperature[dof-nx+1:dof, time_step] .= annual_temperature[dof, time_step]
@@ -103,7 +104,8 @@ function compute_evolution!(discretization, co2_concentration_at_step, year_star
             old_time_step = (time_step == 1) ? num_steps_year : time_step - 1
             update_rhs!(rhs, mesh, num_steps_year, time_step, view(annual_temperature, :, old_time_step), model, last_rhs)
                         
-            annual_temperature[:, time_step] = lu_decomposition \ rhs
+            # Use in-place operation `ldiv!` instead of `\` to avoid allocations
+            ldiv!(view(annual_temperature, :, time_step), lu_decomposition, rhs)
 
             annual_temperature[1:nx, time_step] .= annual_temperature[1, time_step]
             annual_temperature[dof-nx+1:dof, time_step] .= annual_temperature[dof, time_step]
