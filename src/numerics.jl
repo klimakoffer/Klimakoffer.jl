@@ -22,7 +22,7 @@ end
 * update_solar_forcing : manage the monthly update function for the solar forcing
 """
 function compute_equilibrium!(discretization; max_years=100, rel_error=2e-5, verbose=true, update_heat_capacity = false,update_solar_forcing = false)
-    @unpack mesh, model, low_mat, upp_mat, perm_array, num_steps_year, annual_temperature, rhs, last_rhs  = discretization
+    @unpack mesh, model, lu_decomposition, num_steps_year, annual_temperature, rhs, last_rhs  = discretization
     @unpack nx, dof = mesh
     
     average_temperature = average_temperature_old = area_weighted_average(view(annual_temperature, :, num_steps_year), mesh)
@@ -54,7 +54,8 @@ function compute_equilibrium!(discretization; max_years=100, rel_error=2e-5, ver
             old_time_step = (time_step == 1) ? num_steps_year : time_step - 1
             update_rhs!(rhs, mesh, num_steps_year, time_step, view(annual_temperature, :, old_time_step), model, last_rhs)
                         
-            annual_temperature[:, time_step] = upp_mat\(low_mat\rhs[perm_array])
+            # Use in-place operation `ldiv!` instead of `\` to avoid allocations
+            ldiv!(view(annual_temperature, :, time_step), lu_decomposition, rhs)
 
             annual_temperature[1:nx, time_step] .= annual_temperature[1, time_step]
             annual_temperature[dof-nx+1:dof, time_step] .= annual_temperature[dof, time_step]
@@ -85,7 +86,7 @@ end
 Compute the evolution of the mean temperature with varying CO2 levels.
 """
 function compute_evolution!(discretization, co2_concentration_at_step, year_start, year_end; verbose=true, update_heat_capacity = false,update_solar_forcing = false)
-    @unpack mesh, model, low_mat, upp_mat, perm_array, num_steps_year, annual_temperature, rhs, last_rhs  = discretization
+    @unpack mesh, model, lu_decomposition, num_steps_year, annual_temperature, rhs, last_rhs  = discretization
     @unpack nx, dof = mesh
     
     if verbose
@@ -135,7 +136,8 @@ function compute_evolution!(discretization, co2_concentration_at_step, year_star
             old_time_step = (time_step == 1) ? num_steps_year : time_step - 1
             update_rhs!(rhs, mesh, num_steps_year, time_step, view(annual_temperature, :, old_time_step), model, last_rhs)
                         
-            annual_temperature[:, time_step] = upp_mat\(low_mat\rhs[perm_array])
+            # Use in-place operation `ldiv!` instead of `\` to avoid allocations
+            ldiv!(view(annual_temperature, :, time_step), lu_decomposition, rhs)
 
             annual_temperature[1:nx, time_step] .= annual_temperature[1, time_step]
             annual_temperature[dof-nx+1:dof, time_step] .= annual_temperature[dof, time_step]
@@ -181,7 +183,7 @@ end
 function compute_matrix(mesh,num_steps_year,model)
     @unpack nx,ny,dof,h,geom,csc2,cot,area = mesh
     @unpack diffusion_coeff,heat_capacity,radiative_cooling_feedback = model
-    matrix = zeros(Float64,dof,dof)
+    matrix = spzeros(Float64,dof,dof)
     sh2 = 1 / h^2
     # Inner DOFs (c coefficients are divided by h^2)
     for j=2:ny-1
