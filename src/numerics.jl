@@ -40,10 +40,10 @@ function compute_equilibrium!(discretization; max_years=100, rel_error=2e-5, ver
             if mod(time_step,4) == 2 && time_step in (2:48)
                 if update_heat_capacity == true && update_solar_forcing == true     
                  update_model(model, mesh,time_step, true,true,false,true,true)
-                 low_mat, upp_mat = compute_lu_matrices(mesh, model, num_steps_year)
+                 lu_decomposition = compute_lu_matrices(mesh, model, num_steps_year)
                 elseif update_heat_capacity == true && update_solar_forcing == false 
                     update_model(model, mesh, time_step, true,false,false,true,false)
-                    low_mat, upp_mat = compute_lu_matrices(mesh, model, num_steps_year)   
+                    lu_decomposition = compute_lu_matrices(mesh, model, num_steps_year)   
                 elseif update_heat_capacity == false && update_solar_forcing == true
                     update_model(model, mesh, time_step, true,true,false,false,true)  
                 elseif update_heat_capacity == false && update_solar_forcing == false 
@@ -123,10 +123,10 @@ function compute_evolution!(discretization, co2_concentration_at_step, year_star
             if mod(time_step,4) == 2 && time_step in (2:48)
                 if update_heat_capacity == true && update_solar_forcing == true     
                  update_model(model, mesh,time_step, true,true,false,true,true)
-                 low_mat, upp_mat = compute_lu_matrices(mesh, model, num_steps_year)
+                 lu_decomposition = compute_lu_matrices(mesh, model, num_steps_year)
                 elseif update_heat_capacity == true && update_solar_forcing == false 
                     update_model(model, mesh, time_step, true,false,false,true,false)
-                    low_mat, upp_mat = compute_lu_matrices(mesh, model, num_steps_year)   
+                    lu_decomposition = compute_lu_matrices(mesh, model, num_steps_year)   
                 elseif update_heat_capacity == false && update_solar_forcing == true
                     update_model(model, mesh, time_step, true,true,false,false,true)  
                 elseif update_heat_capacity == false && update_solar_forcing == false 
