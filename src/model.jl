@@ -90,13 +90,28 @@ mutable struct Model
   
   function set_geography!(model, mesh, time_step)
   @unpack nx,ny = mesh
-  if model.compute_sea_ice_extent == false
-    model.geography = read_geography(joinpath(@__DIR__, "..", "input", "The_World.dat"),nx,ny)
-  else  
+
+  # monthly geography can be updated by reading the input maps or by computing the sea ice extent
+  # first time step is the last week of March as the simulation starts at the vernal equinox
+   if model.compute_sea_ice_extent == false
+      if time_step in (1,46,47,48)
+        model.geography = read_geography(joinpath(@__DIR__, "..", "input","world", "year2004", string("The_World_from_image", nx, "x", ny,"_1")),nx,ny) 
+    
+      elseif mod(time_step,4) == 2 && time_step in (2:45)
+       month::Int64 = 1
+        for nt in 1:time_step
+          if mod(nt,4) == 1
+           month +=1
+          end
+        end
+        model.geography = read_geography(joinpath(@__DIR__, "..", "input","world", "year2004", string("The_World_from_image", nx, "x", ny,"_",month)),nx,ny)
+      end
+   else  
      annual_sea_ice_extent = read_sea_ice_extent_N(model.year)
      model.geography = calc_geography_per_month_extent(model.geography,annual_sea_ice_extent, time_step, nx, ny)
-  end   
+   end   
   end
+
   
   function set_albedo!(model,mesh)
   @unpack nx,ny = mesh
