@@ -1,55 +1,51 @@
 using Images, ImageFiltering
 using FileIO
 
-# /Users/otzi/Desktop/Bachelorarbeit/world5400x2700.jpg
-
-# TODO: maybe we can classify some day by rgb values instead of grayscale values from 0 to 255
 """
     images_to_maps(...)
 
 * has nearly the same inputs as convert_image_to_world but there is a directorypath instead of a filepath of one image and
 * a targetpath, where you save the 12 maps 
 """
-function images_to_maps(dirsourcepath="/Users/otzi/Desktop/Bachelorarbeit/NASA_Bilder/",targetpath = "./input/world/monthly_maps/", blurred=10, imglong=5400, imglat=2700, nlongitude=128, limit_ocean = 10, limit_land= 140, limit_seaice=205 )
+function images_to_maps(dirsourcepath="/Users/otzi/Desktop/Bachelorarbeit/NASA_Bilder/",targetpath = "./input/world/monthly_maps/",transpose_image = true,  blurred=1, imglong=5400, imglat=2700, nlongitude=128, limit_ocean = 10, limit_land= 140, limit_seaice=205 )
     
     if isdir(dirsourcepath)
         for (root, dirs, files) in walkdir(dirsourcepath)
-            
-            println(root)
-            println(files)
             for file in files
                 if occursin("world", string(file))
                     println(file)
                     filepath = string(root, file)
                     println(filepath)
-                    world = convert_image_to_world(filepath, blurred, imglong, imglat, nlongitude, limit_ocean, limit_land, limit_seaice)
+                    world = convert_image_to_world(filepath, transpose_image, blurred, imglong, imglat, nlongitude, limit_ocean, limit_land, limit_seaice)
                     save_world_by_month(world, string(file), targetpath)
                 end
             end
         end
     end
 end 
+
 """
     convert_image_to_world(...)
 
 * imagefile is the filapath of that lanscape we want to convert into our map with dicrete values for each landcover
-* imglong and imglat are the longitude and latitude of the image, so the pixels ratio
-* dirpath is the directory path where the new map should be save under the new filename
+* transpose_image is nessessary because without transposing each image from NASA website, we would create a 
+    symmetrically mirrored map
+* imglong and imglat are the longitude and latitude of the input image
 * nlongitude is the preferred longitude for the nearest neighbor interpolation
 * limit_[...] is the limiting value for the classification from grayscale per landcover, 
-*       like 0 <= ocean <= limit_ocean <= land <= limit_land <= ice <= limit_seaice <= snow <= 255
+    0 <= ocean (5) <= limit_ocean <= land (1) <= limit_land <= ice (2) <= limit_seaice <= snow (3) <= 255
 """
-
-# TODO: gaussian blur einbinden 
-function convert_image_to_world(imagefile, blurred=10, imglong=5400, imglat=2700, nlongitude=128, limit_ocean = 10, limit_land= 190, limit_seaice=210)
+function convert_image_to_world(imagefile, transpose_image=true, blurred=1, imglong=5400, imglat=2700, nlongitude=128, limit_ocean = 10, limit_land= 190, limit_seaice=210)
 
     world = FileIO.load(imagefile)
-    world = transpose(world) # without to transpose the NASA images, we would create a symmetrically mirrored map
+    if transpose_image
+        world = transpose(world) 
+    end
     (longitude, latitude) = size(world)
 
-    # from RGB values to grayscale (better options to classify the land cover)
+    # from RGB values to grayscale
     grayworld = Gray.(world)
-    grayworld = real.(grayworld) .*255 # Julia's gray values multiplied by 255 to get common grayscale from 0 (black) to 255 (white)
+    grayworld = real.(grayworld) .*255 # to get common grayscale from 0 (black) to 255 (white)
 
     if blurred!=0
         grayworld = imfilter(grayworld, Kernel.gaussian(blurred))
@@ -72,9 +68,17 @@ function convert_image_to_world(imagefile, blurred=10, imglong=5400, imglat=2700
     return nn_interpolation(grayworld, nlongitude)
 end
 
-function save_world_by_month(array_in, img_filename, dirpath)
-    if !isdir(dirpath)
-        mkdir(dirpath)
+"""
+    save_world_by_month(...)
+
+* saves converted maps by their filename.
+* thats important because our simulation starts at 21th March, so March's map should be the first one we 
+*       read out, April's the second and so on
+* we label these maps at the end of their filename with those numbers in directory target_dirpath
+"""
+function save_world_by_month(array_in, img_filename, target_dirpath)
+    if !isdir(target_dirpath)
+        mkdir(target_dirpath)
     end 
     
     # Because our simulation begins at 21. march, we have to label the march with 1 
@@ -85,7 +89,7 @@ function save_world_by_month(array_in, img_filename, dirpath)
             (scaledlong, scaledlat) = size(array_in)
             
             new_filename = string("The_World_from_image", scaledlong, "x", scaledlat,"_", val, ".dat") 
-            new_filepath = string(dirpath, new_filename)
+            new_filepath = string(target_dirpath, new_filename)
             if !isfile(new_filepath)
                 touch(new_filepath) 
             end 
@@ -101,4 +105,3 @@ function save_world_by_month(array_in, img_filename, dirpath)
         end
     end
 end
-

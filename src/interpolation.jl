@@ -1,14 +1,3 @@
-
-function upscale_inputs(nlongitude=256)
-     
-     nlatitude = convert(Int64,nlongitude/2+1)
-
-     println(string("Erstelle Maps für die Auflösung: ", nlongitude, "x",nlatitude))
-     upscale_albedo("./input/albedo/", "albedo128x65.dat", nlongitude)
-     upscale_world("./input/world/", "The_World128x65.dat", nlongitude)
-     get_outline_from_world("./input/world/", string("The_World",nlongitude,"x", nlatitude,".dat"), nlongitude)
-end 
-
 """
     nn_interpolation(...)
 
@@ -18,13 +7,12 @@ end
 function nn_interpolation(array_in, nlongitude=256)
     
      (width_in, height_in) = size(array_in)
-     
      width_out = nlongitude
      height_out = convert(Int64, width_out/2 + 1)
      array_out = fill(0, (width_out, height_out))
    
      # calculate the new distance between each dot/pixle (ratio)
-     # "-1" because the indicies in Julia
+     # "-1" because indicies starts by 1 in Julia
      ratio_w = (width_in-1)/(width_out-1)
      ratio_h = (height_in-1)/(height_out-1)
 
@@ -61,18 +49,19 @@ function nn_interpolation(array_in, nlongitude=256)
      return array_out
 end
 
+"""
+    upscale_world(...)
+
+* scales up the discrete world map in width nlongitude and height nlongitude/2 + 1
+* saves upscaled world in the input array's directory (dirpath)
+"""
 function upscale_world(dirpath = "./input/world/", filename = "The_World128x65.dat",nlongitude=256) 
 
      world = Klimakoffer.read_geography(string(dirpath, filename), 128, 65)
-     (old_long, old_lat) = size(world)
      upscaled_map = nn_interpolation(world, nlongitude)
      (nlongitude, nlatitude) = size(upscaled_map)
 
      new_fname = string("The_World", nlongitude, "x", nlatitude, ".dat")
-
-     if !isdir(dirpath)
-          mkdir(dirpath)
-     end
 
      if !isfile(string(dirpath, new_fname))
           touch(string(dirpath, new_fname))
@@ -117,11 +106,11 @@ function bilinear_interpolation(array_in, nlongitude =256)
           high = 1 
           for h = 1 : height_out
 
-               # the coordinates from the current pixels/knot
+               # the coordinates from the current pixel/knot
                y = 1 + (h-1) * ratio_h  
                x = 1 + (w-1) * ratio_w  
                
-               # calculate coordinates from surrounding pixels
+               # calculate coordinates from surrounding pixels/knots
                x_floor = floor(Int64, x)                    
                y_floor = floor(Int64, y)                        
                x_ceil = min(ceil(Int64, x), width_in)              
@@ -167,20 +156,16 @@ end
 """
     upscale_albedo(...)
 
-* scales up the albedo map 
+* scales up the albedo map in width nlongitude and height nlongitude/2 + 1
+* saves upscaled albedo in the input array's directory (dirpath)
 """
 function upscale_albedo(dirpath = "./input/albedo/", filename = "albedo128x65.dat", nlongitude=256)
 
      albedo = Klimakoffer.read_albedo(string(dirpath, filename), 128, 65)
-     (oldlong, oldlat) = size(albedo)
      upscaled_albedo = bilinear_interpolation(albedo, nlongitude)
      (nlongitude, nlatitude) = size(upscaled_albedo)
      
      new_fname = string("albedo", nlongitude, "x", nlatitude, ".dat")
-
-     if !isdir(dirpath)
-          mkdir(dirpath)
-     end 
      
      if !isfile(string(dirpath, new_fname))
           touch(string(dirpath, new_fname))
@@ -197,14 +182,38 @@ function upscale_albedo(dirpath = "./input/albedo/", filename = "albedo128x65.da
 end
 
 """
-    get_outline_from_map(...)
+    save_outline_from_path(...)
 
-* get the outline from an existing map, so the coast is presented by ones 
+* saves the outline from discrete world, which is load from the given filepath (=dirpath+filename)
 """
-function get_outline_from_world(dirpath = "./input/world/", filename = "The_World128x65.dat",nlongitude=128)
-
+function save_outline_from_path(dirpath = "./input/world/", filename = "The_World128x65.dat",nlongitude=128)
+     
      nlatitude = convert(Int64, nlongitude/2+1)
      world = Klimakoffer.read_geography(string(dirpath, filename), nlongitude, nlatitude)
+     outline = get_outline_from_world(world)
+
+     new_fp = string(dirpath, "The_World_Outline", nlongitude, "x", nlatitude, ".dat")
+     if !isfile(new_fp)
+          touch(new_fp)
+     end 
+
+     open(new_fp,"w") do file 
+          for lat = 1:nlatitude
+               for long = 1:nlongitude
+                    write(file, string(outline[long,lat]))
+               end
+               write(file, "\n")
+          end
+     end
+end
+
+"""
+    get_outline_from_world(world)
+
+* get the outline from our discrete world, so coast is presented by ones 
+"""
+function get_outline_from_world(world)
+     (nlongitude, nlatitude) = size(world) 
      world = clear_map(world)
      outline = Array{Int64}(zeros((nlongitude, nlatitude)))
 
@@ -261,28 +270,14 @@ function get_outline_from_world(dirpath = "./input/world/", filename = "The_Worl
                end
           end
      end
-
-     new_fp = string(dirpath, "The_World_Outline", nlongitude, "x", nlatitude, ".dat")
-
-     if !isfile(new_fp)
-          touch(new_fp)
-     end 
-
-     open(new_fp,"w") do file 
-          for lat = 1:nlatitude
-               for long = 1:nlongitude
-                    write(file, string(outline[long,lat]))
-               end
-               write(file, "\n")
-           end
-     end
-end
+     return outline # new
+end 
 
 """
     clear_map(map)
 
-* a sidefunction, which presents land (1) and permanent snow cover (3) with ones and 
-  perennial sea ice (2), lakes, inland seas (4) and ocean (5) with zeros 
+* a help function, which presents land (1) and permanent snow cover (3) by ones and 
+*    perennial sea ice (2), lakes, inland seas (4) and ocean (5) by zeros 
 """
 function clear_map(map)
      (nlongitude, nlatitude) = size(map)
@@ -298,21 +293,3 @@ function clear_map(map)
      end 
      return map
 end 
-
-"""
-    print_partition_of_map(...)
-
-* for each land cover option (1-8) in the map from the filepath this function prints out the partition in percentage
-"""
-function print_partition_of_map(filepath="./input/world/The_World128x65.dat", nlong=128, nlat=65)
-
-     map = Klimakoffer.read_geography(filepath, nlong, nlat)
-     println(string("land:                 ", 100*count(i->(i==1), map)/(nlong*nlat), "%"))
-     println(string("perennial sea ice:    ", 100*count(i->(i==2), map)/(nlong*nlat), "%"))
-     println(string("permanent snow cover: ", 100*count(i->(i==3), map)/(nlong*nlat), "%"))
-     println(string("lakes, inland seas:   ", 100*count(i->(i==4), map)/(nlong*nlat), "%"))
-     println(string("ocean:                ", 100*count(i->(i in (5,6,7,8)), map)/(nlong*nlat), "%"))
-     println("-----------------------------------------")
-     println(string("Insgesamt:            ", 100*((count(i->(i==1), map)+count(i->(i==2), map)+count(i->(i==3), map)+count(i->(i==4), map)+count(i->(i==5), map))/(nlong*nlat)), "%"))
-end
- 
