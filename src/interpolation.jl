@@ -162,7 +162,7 @@ end
 """
 function upscale_albedo(dirpath = joinpath(@__DIR__,"..","input","albedo"), filename = "albedo128x65.dat", nlongitude=256)
 
-     albedo = Klimakoffer.read_albedo(string(dirpath, filename), 128, 65)
+     albedo = Klimakoffer.read_albedo(joinpath(@__DIR__,dirpath, filename), 128, 65)
      upscaled_albedo = bilinear_interpolation(albedo, nlongitude)
      (nlongitude, nlatitude) = size(upscaled_albedo)
      
