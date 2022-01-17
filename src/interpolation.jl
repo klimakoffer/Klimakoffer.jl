@@ -55,19 +55,20 @@ end
 * scales up the discrete world map in width nlongitude and height nlongitude/2 + 1
 * saves upscaled world in the input array's directory (dirpath)
 """
-function upscale_world(dirpath = "./input/world/", filename = "The_World128x65.dat",nlongitude=256) 
+function upscale_world(dirpath = joinpath(@__DIR__, "..","input","world"), filename = "The_World128x65.dat",nlongitude=256) 
 
-     world = Klimakoffer.read_geography(string(dirpath, filename), 128, 65)
+     world = Klimakoffer.read_geography(joinpath(dirpath, filename), 128, 65)
      upscaled_map = nn_interpolation(world, nlongitude)
      (nlongitude, nlatitude) = size(upscaled_map)
 
      new_fname = string("The_World", nlongitude, "x", nlatitude, ".dat")
+     new_fp = joinpath(@__DIR__, dirpath, new_fname)
 
-     if !isfile(string(dirpath, new_fname))
-          touch(string(dirpath, new_fname))
+     if !isfile(new_fp)
+          touch(new_fp)
      end 
 
-     open(string(dirpath, new_fname),"w") do file 
+     open(new_fp,"w") do file 
           for lat = 1:nlatitude
                for long = 1:nlongitude
                     write(file, string(upscaled_map[long,lat]))
@@ -159,19 +160,19 @@ end
 * scales up the albedo map in width nlongitude and height nlongitude/2 + 1
 * saves upscaled albedo in the input array's directory (dirpath)
 """
-function upscale_albedo(dirpath = "./input/albedo/", filename = "albedo128x65.dat", nlongitude=256)
+function upscale_albedo(dirpath = joinpath(@__DIR__,"..","input","albedo"), filename = "albedo128x65.dat", nlongitude=256)
 
      albedo = Klimakoffer.read_albedo(string(dirpath, filename), 128, 65)
      upscaled_albedo = bilinear_interpolation(albedo, nlongitude)
      (nlongitude, nlatitude) = size(upscaled_albedo)
      
      new_fname = string("albedo", nlongitude, "x", nlatitude, ".dat")
-     
-     if !isfile(string(dirpath, new_fname))
-          touch(string(dirpath, new_fname))
+     new_fp = joinpath(@__DIR__,dirpath, new_fname)
+     if !isfile(new_fp)
+          touch(new_fp)
      end 
 
-     open(string(dirpath, new_fname),"w") do file 
+     open(new_fp,"w") do file 
           for lat = 1:nlatitude
                for long = 1:nlongitude
                     write(file, string("      ",upscaled_albedo[long,lat]))
@@ -186,13 +187,14 @@ end
 
 * saves the outline from discrete world, which is load from the given filepath (=dirpath+filename)
 """
-function save_outline_from_path(dirpath = "./input/world/", filename = "The_World128x65.dat",nlongitude=128)
+function save_outline_from_path(dirpath = joinpath(@__DIR__, "..", "input", "world"), filename = "The_World128x65.dat",nlongitude=128)
      
      nlatitude = convert(Int64, nlongitude/2+1)
-     world = Klimakoffer.read_geography(string(dirpath, filename), nlongitude, nlatitude)
+     world = Klimakoffer.read_geography(joinpath(dirpath, filename), nlongitude, nlatitude)
      outline = get_outline_from_world(world)
 
-     new_fp = string(dirpath, "The_World_Outline", nlongitude, "x", nlatitude, ".dat")
+     filename = string("The_World_Outline", nlongitude, "x", nlatitude, ".dat")
+     new_fp = joinpath(@__DIR__,dirpath, filename)
      if !isfile(new_fp)
           touch(new_fp)
      end 

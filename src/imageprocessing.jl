@@ -7,7 +7,7 @@ using FileIO
 * has nearly the same inputs as convert_image_to_world but there is a directorypath instead of a filepath of one image and
 * a targetpath, where you save the 12 maps 
 """
-function images_to_maps(dirsourcepath="/Users/otzi/Desktop/Bachelorarbeit/NASA_Bilder/",targetpath = "./input/world/monthly_maps/",transpose_image = true,  blurred=1, imglong=5400, imglat=2700, nlongitude=128, limit_ocean = 10, limit_land= 140, limit_seaice=205 )
+function images_to_maps(dirsourcepath, targetpath = joinpath(@__DIR__, "..","input","world","monthly_maps"),transpose_image = true,  blurred=1, imglong=5400, imglat=2700, nlongitude=128, limit_ocean = 10, limit_land= 140, limit_seaice=205 )
     
     if isdir(dirsourcepath)
         for (root, dirs, files) in walkdir(dirsourcepath)
@@ -89,7 +89,7 @@ function save_world_by_month(array_in, img_filename, target_dirpath)
             (scaledlong, scaledlat) = size(array_in)
             
             new_filename = string("The_World_from_image", scaledlong, "x", scaledlat,"_", val, ".dat") 
-            new_filepath = string(target_dirpath, new_filename)
+            new_filepath = string(joinpath(@__DIR__,target_dirpath, new_filename))
             if !isfile(new_filepath)
                 touch(new_filepath) 
             end 
