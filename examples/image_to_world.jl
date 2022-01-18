@@ -14,4 +14,6 @@ if !isfile(joinpath(@__DIR__, "..",  "examples", "test_instances", "The_World_fr
     res +=1
 end
 
+rm(joinpath(@__DIR__, "..",  "examples", "test_instances", "The_World_from_image128x65_1.dat" ))
+
 

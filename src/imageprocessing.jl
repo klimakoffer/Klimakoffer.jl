@@ -13,9 +13,7 @@ function images_to_maps(dirsourcepath, targetpath = joinpath(@__DIR__, "..","inp
         for (root, dirs, files) in walkdir(dirsourcepath)
             for file in files
                 if occursin("world", string(file))
-                    println(file)
-                    filepath = string(root, file)
-                    println(filepath)
+                    filepath = joinpath(@__DIR__, root, file) 
                     world = convert_image_to_world(filepath, transpose_image, blurred, imglong, imglat, nlongitude, limit_ocean, limit_land, limit_seaice)
                     save_world_by_month(world, string(file), targetpath)
                 end
