@@ -57,7 +57,7 @@ function convert_image_to_world(imagefile, transpose_image=true, blurred=1, imgl
                 grayworld[long, lat] = 1
             elseif grayworld[long, lat] > limit_land && grayworld[long, lat] <= limit_seaice # sea ice
                 grayworld[long, lat] = 2
-            elseif grayworld[long, lat] > limit_seaice && grayworld[long, lat] <= 255 # snow cover (snow has the highest albedo value)
+            elseif grayworld[long, lat] > limit_seaice && grayworld[long, lat] <= 256 # snow cover (snow has the highest albedo value)
                 grayworld[long, lat] = 3
             end
         end
@@ -75,8 +75,8 @@ end
 * we label these maps at the end of their filename with those numbers in directory target_dirpath
 """
 function save_world_by_month(array_in, img_filename, target_dirpath)
-    if !isdir(target_dirpath)
-        mkdir(target_dirpath)
+    if !isdir(joinpath(@__DIR__,target_dirpath))
+        mkdir(joinpath(@__DIR__,target_dirpath))
     end 
     
     # Because our simulation begins at 21 March, we have to label March with 1 
