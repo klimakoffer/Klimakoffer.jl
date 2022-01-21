@@ -8,4 +8,4 @@ clear = Klimakoffer.read_geography(joinpath(@__DIR__,"..","examples","test_insta
 
 diff = clear - cleared_map
 
-res = sum(diff)
+res = sum(abs(diff))

@@ -8,6 +8,6 @@ ref = Klimakoffer.read_geography(joinpath(@__DIR__,"..","examples","test_instanc
 
 diff = ref-upscaled
 
-res = sum(diff)
+res = sum(abs.(diff))
 
 rm(joinpath(@__DIR__,"..","examples","test_instances","world","The_World150x76.dat"))

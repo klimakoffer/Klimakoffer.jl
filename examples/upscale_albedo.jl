@@ -8,6 +8,6 @@ ref = Klimakoffer.read_albedo(joinpath(@__DIR__,"..","examples","test_instances"
 
 diff = ref-upscaled
 
-res = sum(diff)
+res = sum(abs.(diff))
 
 rm(joinpath(@__DIR__,"..","examples","test_instances","albedo","albedo150x76.dat"))
