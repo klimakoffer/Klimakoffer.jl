@@ -1,5 +1,6 @@
 using Images, ImageFiltering
 using FileIO
+using StatsBase
 
 """
     images_to_maps(...)
@@ -62,6 +63,9 @@ function convert_image_to_world(imagefile, transpose_image=true, blurred=1, imgl
             end
         end
     end
+
+    grayworld[:,1] .= StatsBase.mode(grayworld[:,1])
+    grayworld[:,latitude] .= StatsBase.mode(grayworld[:,latitude])
    
     return nn_interpolation(grayworld, nlongitude)
 end
