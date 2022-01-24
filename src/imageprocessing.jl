@@ -42,6 +42,10 @@ function convert_image_to_world(imagefile, transpose_image=true, blurred=1, imgl
     end
     (longitude, latitude) = size(world)
 
+    if blurred!=0
+        world = imfilter(world, Kernel.gaussian(blurred))
+    end
+
     # from RGB values to grayscale
     grayworld = Gray.(world)
     grayworld = real.(grayworld) .*255 # to get common grayscale from 0 (black) to 255 (white)
