@@ -52,7 +52,7 @@ EXAMPLES_DIR = joinpath(pathof(Klimakoffer) |> dirname |> dirname, "examples")
     println("")
     @test_nowarn include(joinpath(EXAMPLES_DIR, test_file))
 
-    @test isapprox(result, 0, atol=0.02) 
+    @test isapprox(result, 0, atol=0.05) 
   end
 
   test_file = "clear_map.jl" 
