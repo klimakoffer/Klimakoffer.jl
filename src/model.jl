@@ -628,7 +628,7 @@ function calc_geography_per_month_extent(geography,annual_sea_ice_extent, time_s
  # Gets the right month when the simulation starts at the vernal equinox
  if time_step in (1,46,47,48)
   month = 1
-  elseif mod(time_step,4) == 2
+elseif mod(time_step,4) == 2
     month = 1
     for nt in 1:time_step
       if mod(nt,4) == 1
