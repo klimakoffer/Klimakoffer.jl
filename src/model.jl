@@ -742,6 +742,9 @@ end
                       if N[J] == 2
                           N[J[1], J[2]] = 5
                           new_cells -= 1
+                          if new_cells <= 0
+                              break
+                          end
                       end
                   end
   
