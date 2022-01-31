@@ -18,15 +18,13 @@ function nn_interpolation(array_in, nlongitude=256)
 
      row = ones(Float64, width_out)
      for i = 1 : length(row)         
-          r = row[i] + (i-1) * ratio_w
-          row[i] = r
+          row[i] = row[i] + (i-1) * ratio_w
      end
      row[end] = round(width_in) 
     
      col = ones(Float64, height_out)
      for i = 1 : length(col)   
-          c = col[i] + (i-1) * ratio_h
-          col[i] = c
+          col[i] = col[i] + (i-1) * ratio_h
      end
      col[end] = round(height_in) 
 
@@ -96,9 +94,6 @@ function bilinear_interpolation(array_in, nlongitude =256)
      # "-1" because the indicies in Julia
      ratio_w = (width_in-1)/(width_out-1)
      ratio_h = (height_in-1)/(height_out-1)
-
-     row = ones(Float64, width_out)
-     col = ones(Float64, height_out)
 
      high = 1
      wide = 1

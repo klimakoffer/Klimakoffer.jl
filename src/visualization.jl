@@ -1,7 +1,4 @@
 using Interpolations;
-using Plots
-using PyPlot
-pyplot()
 
 function showGif(field,title_in="Solar Forcing of the Earth: t = ",minval=-46.073107944313556,maxval=32.52216883281448)
     World = read_geography(joinpath(@__DIR__,"..", "input", "The_World_Outline.dat"))*(-80)
