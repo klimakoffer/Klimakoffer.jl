@@ -111,7 +111,7 @@ mutable struct Model
       end
    else  
      annual_sea_ice_extent = read_sea_ice_extent_N(model.year)
-     model.geography = calc_geography_per_month_extent(model.geography,annual_sea_ice_extent, time_step, nx, ny)
+     calc_geography_per_month_extent!(model.geography,annual_sea_ice_extent, time_step, nx, ny)
    end   
   end
 
