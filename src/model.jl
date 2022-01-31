@@ -670,7 +670,7 @@ elseif mod(time_step,4) == 2
 
 
    # case for an extent of sea ice
-   # adjacent ocean cells will turn to sea ice cells
+   # adjacent ocean cells (geo=5,6,7,8) will turn to sea ice cells
 if sea_ice_cells_delta == 0
   return geo
 end
