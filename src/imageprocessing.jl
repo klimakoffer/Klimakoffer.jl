@@ -8,7 +8,7 @@ using StatsBase
 * has nearly the same inputs as convert_image_to_world but there is a directorypath instead of a filepath of one image and
 * a targetpath, where you save the 12 maps 
 """
-function images_to_maps(dirsourcepath, targetpath = joinpath(@__DIR__, "..","input","world","monthly_maps"),transpose_image = true,  blurred=1, imglong=5400, imglat=2700, nlongitude=128, limit_ocean = 10, limit_land= 140, limit_seaice=205 )
+function images_to_maps(dirsourcepath, targetpath = joinpath(@__DIR__, "..","input","world","monthly_maps"),transpose_image = true,  blurred=1, imglong=5400, imglat=2700, nlongitude=128, limit_ocean = 10, limit_land= 190, limit_seaice=205 )
     
     if isdir(dirsourcepath)
         for (root, dirs, files) in walkdir(dirsourcepath)
