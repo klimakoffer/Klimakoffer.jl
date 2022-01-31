@@ -404,35 +404,6 @@ mutable struct Model
   return diffusion
   end
   
-  
-  # Calculate the area weighted mean of the diffusion at the mid-point between
-  # the pole and the first ring of grid points.
-  
-  # If you need the mean diffusion at the poles just do the following:
-  #   mean_diffusion_north = sum(diffusion_north)
-  #   mean_diffusion_south = sum(diffusion_south)
-  
-  ## function calc_diffusion_coefficients_poles(diffusion,nlongitude=128,nlatitude=65)
-  
-  ##   # Fractional areas for the poles
-  ##   angle  = pi/real(nlatitude-1)
-  ##   area_1 = 0.5*(1.0 - cos(0.5*angle))
-  ##   area_2 = sin(0.5*angle)*sin(angle)/float(nlongitude)
-  
-  ##   total_area = area_1 + area_2
-  
-  ##   diffusion_north = zeros(Float64,nlongitude)
-  ##   diffusion_south = zeros(Float64,nlongitude)
-  
-  ##   for i = 1:nlongitude
-  ##       diffusion_north[i] = (area_1*diffusion[1,        1] + area_2*diffusion[i,          2])/total_area
-  ##       diffusion_south[i] = (area_1*diffusion[1,nlatitude] + area_2*diffusion[i,nlatitude-1])/total_area
-  ##   end
-  
-  ##   return diffusion_north,diffusion_south
-  ## end
-  
-  
   function read_albedo(filepath="albedo.dat",nlongitude=128,nlatitude=65)
   result = zeros(Float64,nlongitude,nlatitude)
   open(filepath) do fh
