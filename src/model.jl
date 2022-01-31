@@ -637,13 +637,6 @@ function calc_geography_per_month_extent(geography,annual_sea_ice_extent, time_s
     end   
  end
 
-  # Gets the right month when the simulation starts with the first week of January 
-  #for nt in 1:time_step
-  # if mod(nt,4) == 1
-  # month +=1
-  # end
-  #end
-  
   nlat::Int64 = (nlatitude-1)*0.5
   geography_start = read_geography(joinpath(@__DIR__, "..", "input", "The_World.dat"),128,65)
   geo = geography_start[:,1:nlat]
