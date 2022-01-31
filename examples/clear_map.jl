@@ -4,7 +4,7 @@ world = Klimakoffer.read_geography(joinpath(@__DIR__,"..","input","world","The_W
 
 cleared_map = Klimakoffer.clear_map(world)
 
-clear = Klimakoffer.read_geography(joinpath(@__DIR__,"..","examples","test_instances","clear_map128x65.dat"),128,65)
+clear = Klimakoffer.read_geography(joinpath(@__DIR__,"..","examples","reference_data","clear_map128x65.dat"),128,65)
 
 diff = clear - cleared_map
 
