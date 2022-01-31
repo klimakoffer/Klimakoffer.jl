@@ -26,4 +26,5 @@ include("discretization.jl")
 include("numerics.jl")
 include("interpolation.jl") 
 include("imageprocessing.jl")
+include("PlotTutorial.jl")
 end # module
