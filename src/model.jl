@@ -720,7 +720,9 @@ end
                       if G[J] in (5,6,7,8)
                           G[J[1], J[2]] = 2
                           new_cells -= 1
-                         
+                         if new_cells <= 0
+                             break
+                         end
                       end
                   end
               end
