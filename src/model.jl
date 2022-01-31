@@ -621,7 +621,7 @@ and mapping extent or reduction to adjacent sea ice cells and ocean cells on the
 
 """
 
-function calc_geography_per_month_extent(geography,annual_sea_ice_extent, time_step, nlongitude=128, nlatitude =65)
+function calc_geography_per_month_extent!(geography,annual_sea_ice_extent, time_step, nlongitude=128, nlatitude =65)
 
   month::Int64 = 0
 
