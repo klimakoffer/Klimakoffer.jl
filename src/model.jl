@@ -707,7 +707,9 @@ function calc_geography_per_month_extent(geography,annual_sea_ice_extent, time_s
 
    # case for an extent of sea ice
    # adjacent ocean cells will turn to sea ice cells
-
+if new_cells == 0
+  return geo
+end
    if new_counter > old_counter
       for I in IndG
           if G[I[1], I[2]] == 2
