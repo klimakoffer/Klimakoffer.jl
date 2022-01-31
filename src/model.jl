@@ -223,7 +223,7 @@ mutable struct Model
   end
   
   """
-  calc_solar_forcing()
+  calc_solar_forcing_params()
   
   * Default s0 is 1371.685 [W/m²] (Current solar constant)
   * Default orbital parameters of correspond to year 1950 AD:
