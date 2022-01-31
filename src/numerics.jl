@@ -36,20 +36,7 @@ function compute_equilibrium!(discretization; max_years=100, rel_error=2e-5, ver
         average_temperature = 0.0
         for time_step in 1:num_steps_year
 
-            # monthly update starting with first week of April
-            if mod(time_step,4) == 2 && time_step in (2:48)
-                if update_heat_capacity == true && update_solar_forcing == true     
-                 update_model(model, mesh,time_step, true,true,false,true,true)
-                 lu_decomposition = compute_lu_matrices(mesh, model, num_steps_year)
-                elseif update_heat_capacity == true && update_solar_forcing == false 
-                    update_model(model, mesh, time_step, true,false,false,true,false)
-                    lu_decomposition = compute_lu_matrices(mesh, model, num_steps_year)   
-                elseif update_heat_capacity == false && update_solar_forcing == true
-                    update_model(model, mesh, time_step, true,true,false,false,true)  
-                elseif update_heat_capacity == false && update_solar_forcing == false 
-                    update_model(model, mesh, time_step, false,false,false,false,false)
-                end
-            end    
+            lu_decomposition = update_monthly_params(mesh, model, lu_decomposition, num_steps_year, time_step, update_heat_capacity, update_solar_forcing)
 
             old_time_step = (time_step == 1) ? num_steps_year : time_step - 1
             update_rhs!(rhs, mesh, num_steps_year, time_step, view(annual_temperature, :, old_time_step), model, last_rhs)
@@ -119,20 +106,7 @@ function compute_evolution!(discretization, co2_concentration_at_step, year_star
         average_temperature = 0.0
         for time_step in 1:num_steps_year
             set_co2_concentration!(model, co2_concentration_at_step[step])
-             # monthly update starting with first week of April
-            if mod(time_step,4) == 2 && time_step in (2:48)
-                if update_heat_capacity == true && update_solar_forcing == true     
-                 update_model(model, mesh,time_step, true,true,false,true,true)
-                 lu_decomposition = compute_lu_matrices(mesh, model, num_steps_year)
-                elseif update_heat_capacity == true && update_solar_forcing == false 
-                    update_model(model, mesh, time_step, true,false,false,true,false)
-                    lu_decomposition = compute_lu_matrices(mesh, model, num_steps_year)   
-                elseif update_heat_capacity == false && update_solar_forcing == true
-                    update_model(model, mesh, time_step, true,true,false,false,true)  
-                elseif update_heat_capacity == false && update_solar_forcing == false 
-                    update_model(model, mesh, time_step, false,false,false,false,false)
-                end
-            end    
+            lu_decomposition = update_monthly_params(mesh, model, lu_decomposition, num_steps_year, time_step, update_heat_capacity, update_solar_forcing)   
             old_time_step = (time_step == 1) ? num_steps_year : time_step - 1
             update_rhs!(rhs, mesh, num_steps_year, time_step, view(annual_temperature, :, old_time_step), model, last_rhs)
                         
@@ -285,4 +259,26 @@ function update_rhs!(rhs, mesh, num_steps_year, time_step, temperature, model,  
         end
     end
     last_rhs .= rhs
+end
+
+
+function update_monthly_params(mesh, model, lu_decomposition, num_steps_year, time_step, update_heat_capacity, update_solar_forcing)
+    # monthly update starting with first week of April
+    lu_decomposition = lu_decomposition
+    if mod(time_step,4) == 2 && time_step in (2:48)
+        if update_heat_capacity == true && update_solar_forcing == true     
+         update_model(model, mesh,time_step, true,true,false,true,true)
+         lu_decomposition = compute_lu_matrices(mesh, model, num_steps_year)
+        elseif update_heat_capacity == true && update_solar_forcing == false 
+            update_model(model, mesh, time_step, true,false,false,true,false)
+            lu_decomposition = compute_lu_matrices(mesh, model, num_steps_year)   
+        elseif update_heat_capacity == false && update_solar_forcing == true
+            update_model(model, mesh, time_step, true,true,false,false,true)  
+        elseif update_heat_capacity == false && update_solar_forcing == false 
+            update_model(model, mesh, time_step, false,false,false,false,false)
+        end
+    end
+    
+    return lu_decomposition
+
 end

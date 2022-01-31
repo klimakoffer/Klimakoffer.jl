@@ -10,7 +10,7 @@ mutable struct Model
     co_albedo::Array{Float64,2}         # Absorbed radiatian coefficient: depends on the albedo
     compute_albedo::Bool                # Attribute for deciding whether the albedo should be calculated instead of being read from a file
     geography::Array{Int8,2}            # Monthly land-sea-snow/sea ice distribution: depends on initial geography input if compute_sea_ice_extent is true
-    solar::Array{Float64,2}             # Solar irradiance: depends on the orbital parameters
+    solar_irradiance::Array{Float64,2}  # Solar irradiance: depends on the orbital parameters
     compute_sea_ice_extent::Bool        # Attribute for deciding whether sea ice extent should be calculated for the geography or read from given maps
     year::Int64    
   end
@@ -50,11 +50,11 @@ mutable struct Model
     per = perihelion(1950)
      
     
-    lambda,solar = calc_solar_forcing_params(nlatitude=ny, ntimesteps=num_steps_year, ecc=ecc, ob=ob, per=per)
-    solar_forcing = calc_solar_forcing(co_albedo, solar,nx,ny,num_steps_year)
+    solar_irradiance = calc_solar_forcing_params(nlatitude=ny, ntimesteps=num_steps_year, ecc=ecc, ob=ob, per=per)
+    solar_forcing = calc_solar_forcing(co_albedo, solar_irradiance, nx, ny, num_steps_year)
   
     
-    return Model(diffusion_coeff, heat_capacity, albedo, solar_forcing, radiative_cooling_co2, radiative_cooling_feedback,co_albedo,compute_albedo,geography,solar, compute_sea_ice_extent,year)
+    return Model(diffusion_coeff, heat_capacity, albedo, solar_forcing, radiative_cooling_co2, radiative_cooling_feedback,co_albedo,compute_albedo,geography,solar_irradiance,compute_sea_ice_extent,year)
   end
   
   function set_co2_concentration!(model, co2_concentration)
@@ -141,8 +141,8 @@ mutable struct Model
   
   function set_solar_forcing!(model, mesh)
   @unpack nx,ny = mesh
-  solar = model.solar
-  model.solar_forcing = calc_solar_forcing(model.co_albedo, solar, nx, ny)
+  solar_irradiance = model.solar_irradiance
+  model.solar_forcing = calc_solar_forcing(model.co_albedo, solar_irradiance, nx, ny)
   end
   
   
@@ -263,7 +263,7 @@ mutable struct Model
     lambda, solar = _calc_insolation(dt, ob, ecc, per, ntimesteps, nlatitude, siny, cosy, tany, s0)
   end
   
-  return lambda, solar
+  return solar
   
   end
   
@@ -702,25 +702,25 @@ function calc_geography_per_month_extent(geography,annual_sea_ice_extent, time_s
    sea_ice_index = findall(isequal(2),G)
    old_counter = size(sea_ice_index,1)
    new_counter = sea_ice_index_unit*annual_sea_ice_extent[month]
-   new_cells = abs(floor(Int,new_counter - old_counter))
+   sea_ice_cells_delta = abs(floor(Int,new_counter - old_counter))
 
 
    # case for an extent of sea ice
    # adjacent ocean cells will turn to sea ice cells
-if new_cells == 0
+if sea_ice_cells_delta == 0
   return geo
 end
    if new_counter > old_counter
       for I in IndG
           if G[I[1], I[2]] == 2
-              if new_cells <= 0
+              if sea_ice_cells_delta <= 0
                   break
               else
                   for J in max(Gfirst, I-G1):min(Glast, I+G1)
                       if G[J] in (5,6,7,8)
                           G[J[1], J[2]] = 2
-                          new_cells -= 1
-                         if new_cells <= 0
+                          sea_ice_cells_delta -= 1
+                         if sea_ice_cells_delta <= 0
                              break
                          end
                       end
@@ -734,17 +734,17 @@ end
    # adjacent sea ice cells will turn to ocean cells
    elseif new_counter < old_counter
       for I in IndN
-          if N[I[1], I[2]] == 2 && new_cells > 0
+          if N[I[1], I[2]] == 2 && sea_ice_cells_delta > 0
               N[I[1], I[2]] = 5
-              new_cells -= 1
-              if new_cells <= 0
+              sea_ice_cells_delta -= 1
+              if sea_ice_cells_delta <= 0
                   break
               else
                   for J in max(Ifirst, I-I1):min(Ilast, I+I1)
                       if N[J] == 2
                           N[J[1], J[2]] = 5
-                          new_cells -= 1
-                          if new_cells <= 0
+                          sea_ice_cells_delta -= 1
+                          if sea_ice_cells_delta <= 0
                               break
                           end
                       end
