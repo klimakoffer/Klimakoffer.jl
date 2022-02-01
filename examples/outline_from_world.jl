@@ -9,5 +9,3 @@ outline = Klimakoffer.read_geography(joinpath(@__DIR__,"..","input","world","The
 diff = ref - outline
 
 res = sum(abs.(diff))
-
-rm(joinpath(@__DIR__,"..","examples","reference_data","world","The_World_Outline128x65.dat"))
