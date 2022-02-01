@@ -91,6 +91,8 @@ mutable struct Model
   end
   
   
+  # TODO: this routine works only for NT = 48
+
   function set_geography!(model, mesh, time_step)
   @unpack nx,ny = mesh
 
@@ -599,9 +601,13 @@ mutable struct Model
   end
 
 
+"""
+read_sea_ice_extent_N()
+* Default year: 1979
+* Possible years to pick annual sea ice extent for the Northern Hemisphere : 1979 to 2020
+* returns a vector with sea ice extent per month from March to February
 
-# possible years to pick annual sea ice extent for the northern hemisphere : 1979 to 2020
-# returns a vector with sea ice extent per month from March to February
+"""
 
 function read_sea_ice_extent_N(year=1979)
 
@@ -615,9 +621,16 @@ end
 
 
 """
-calc_geography_per_month_extent()
-Determines a new geography matrix by determining sea ice extent with a monthly rate of change
-and mapping extent or reduction to adjacent sea ice cells and ocean cells on the Northern Hemisphere.
+calc_geography_per_month_extent!()
+* This routine a new geography matrix by determining sea ice extent with a monthly rate of change
+  and mapping extent or reduction to adjacent sea ice cells and ocean cells on the Northern Hemisphere.
+
+* This routine assumes that the sea ice extent of the geography file corresponds to 
+  the measured sea ice at the vernal equinox.
+ 
+* There is a bias in the order sea ice cells are added/removed.
+  sea ice extent: starts from top left to bottom right
+  sea ice reduction: starts from bottom left to top right
 
 """
 
@@ -625,7 +638,10 @@ function calc_geography_per_month_extent!(geography,annual_sea_ice_extent, time_
 
   month::Int64 = 0
 
+
  # Gets the right month when the simulation starts at the vernal equinox
+ # TODO: this part works only for NT = 48
+
  if time_step in (1,46,47,48)
   month = 1
 elseif mod(time_step,4) == 2
@@ -640,15 +656,17 @@ elseif mod(time_step,4) == 2
   nlat::Int64 = (nlatitude-1)*0.5
   geography_start = read_geography(joinpath(@__DIR__, "..", "input", "The_World.dat"),128,65)
   geo = geography_start[:,1:nlat]
-  sea_ice_index_unit = size(findall(isequal(2),geo),1)/annual_sea_ice_extent[1]
-  
-  
 
   if month == 0 || month == 1
     geography = geography_start
     return geography
   else
+ 
+
+  sea_ice_index_unit = size(findall(isequal(2),geo),1)/annual_sea_ice_extent[1]
   
+  
+
    # collect submatrix and indices for the Northern Hemisphere
 
    G = geography[:,1:nlat]
