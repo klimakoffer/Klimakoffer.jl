@@ -262,9 +262,21 @@ function update_rhs!(rhs, mesh, num_steps_year, time_step, temperature, model,  
 end
 
 
+
+"""
+ update_monthly_params(...)
+
+* The routine updates monthly all important parameters of the model,
+  which are necessary for the passed update settings.
+  When updating the heat capacity, the LU decomposition must take place again. 
+  Update start is the first week of April.
+
+"""
+
 function update_monthly_params(mesh, model, lu_decomposition, num_steps_year, time_step, update_heat_capacity, update_solar_forcing)
-    # monthly update starting with first week of April
+   
     lu_decomposition = lu_decomposition
+
     if mod(time_step,4) == 2 && time_step in (2:48)
         if update_heat_capacity == true && update_solar_forcing == true     
          update_model(model, mesh,time_step, true,true,false,true,true)
@@ -277,8 +289,7 @@ function update_monthly_params(mesh, model, lu_decomposition, num_steps_year, ti
         elseif update_heat_capacity == false && update_solar_forcing == false 
             update_model(model, mesh, time_step, false,false,false,false,false)
         end
-    end
-    
-    return lu_decomposition
+    end    
 
+    return lu_decomposition
 end
