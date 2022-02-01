@@ -22,7 +22,7 @@ end
 * update_solar_forcing : manage the monthly update function for the solar forcing
 """
 function compute_equilibrium!(discretization; max_years=100, rel_error=2e-5, verbose=true, update_heat_capacity = false,update_solar_forcing = false)
-    @unpack mesh, model, lu_decomposition, num_steps_year, annual_temperature, rhs, last_rhs  = discretization
+    @unpack mesh, model, num_steps_year, annual_temperature, rhs, last_rhs  = discretization
     @unpack nx, dof = mesh
     
     average_temperature = average_temperature_old = area_weighted_average(view(annual_temperature, :, num_steps_year), mesh)
@@ -36,13 +36,13 @@ function compute_equilibrium!(discretization; max_years=100, rel_error=2e-5, ver
         average_temperature = 0.0
         for time_step in 1:num_steps_year
 
-            lu_decomposition = update_monthly_params(mesh, model, lu_decomposition, num_steps_year, time_step, update_heat_capacity, update_solar_forcing)
+            update_monthly_params!(model, discretization.lu_decomposition, mesh, num_steps_year, time_step, update_heat_capacity, update_solar_forcing)
 
             old_time_step = (time_step == 1) ? num_steps_year : time_step - 1
             update_rhs!(rhs, mesh, num_steps_year, time_step, view(annual_temperature, :, old_time_step), model, last_rhs)
                         
             # Use in-place operation `ldiv!` instead of `\` to avoid allocations
-            ldiv!(view(annual_temperature, :, time_step), lu_decomposition, rhs)
+            ldiv!(view(annual_temperature, :, time_step), discretization.lu_decomposition, rhs)
 
             annual_temperature[1:nx, time_step] .= annual_temperature[1, time_step]
             annual_temperature[dof-nx+1:dof, time_step] .= annual_temperature[dof, time_step]
@@ -73,7 +73,7 @@ end
 Compute the evolution of the mean temperature with varying CO2 levels.
 """
 function compute_evolution!(discretization, co2_concentration_at_step, year_start, year_end; verbose=true, update_heat_capacity = false,update_solar_forcing = false)
-    @unpack mesh, model, lu_decomposition, num_steps_year, annual_temperature, rhs, last_rhs  = discretization
+    @unpack mesh, model, num_steps_year, annual_temperature, rhs, last_rhs  = discretization
     @unpack nx, dof = mesh
     
     if verbose
@@ -106,12 +106,12 @@ function compute_evolution!(discretization, co2_concentration_at_step, year_star
         average_temperature = 0.0
         for time_step in 1:num_steps_year
             set_co2_concentration!(model, co2_concentration_at_step[step])
-            lu_decomposition = update_monthly_params(mesh, model, lu_decomposition, num_steps_year, time_step, update_heat_capacity, update_solar_forcing)   
+            update_monthly_params!(model, discretization.lu_decomposition, mesh, num_steps_year, time_step, update_heat_capacity, update_solar_forcing)   
             old_time_step = (time_step == 1) ? num_steps_year : time_step - 1
             update_rhs!(rhs, mesh, num_steps_year, time_step, view(annual_temperature, :, old_time_step), model, last_rhs)
                         
             # Use in-place operation `ldiv!` instead of `\` to avoid allocations
-            ldiv!(view(annual_temperature, :, time_step), lu_decomposition, rhs)
+            ldiv!(view(annual_temperature, :, time_step), discretization.lu_decomposition, rhs)
 
             annual_temperature[1:nx, time_step] .= annual_temperature[1, time_step]
             annual_temperature[dof-nx+1:dof, time_step] .= annual_temperature[dof, time_step]
@@ -154,6 +154,10 @@ function area_weighted_average(vector,mesh)
     return average_vector
 end
 
+"""
+compute_matrix(mesh,num_steps_year,model)
+Compute the system matrix for the linear solver
+"""
 function compute_matrix(mesh,num_steps_year,model)
     @unpack nx,ny,dof,h,geom,csc2,cot,area = mesh
     @unpack diffusion_coeff,heat_capacity,radiative_cooling_feedback = model
@@ -164,7 +168,7 @@ function compute_matrix(mesh,num_steps_year,model)
         for i=1:nx
 
             # Compute coefficients
-            c0 = 2 * sh2 * diffusion_coeff[i,j] * (1 + csc2[j]) + 2 * heat_capacity[i,j] * num_steps_year + radiative_cooling_feedback
+            c0 = 2 * num_steps_year + (2 * sh2 * diffusion_coeff[i,j] * (1 + csc2[j]) + radiative_cooling_feedback) / heat_capacity[i,j,2]
 
             # Get diffusion coefficient 
             if (i == 1) # Periodic BC
@@ -200,10 +204,10 @@ function compute_matrix(mesh,num_steps_year,model)
             col_idx_c4 = row_idx + nx
 
             matrix[row_idx,col_idx_c0] = c0
-            matrix[row_idx,col_idx_c1] = -c1
-            matrix[row_idx,col_idx_c2] = -c2
-            matrix[row_idx,col_idx_c3] = -c3
-            matrix[row_idx,col_idx_c4] = -c4
+            matrix[row_idx,col_idx_c1] = -c1 / heat_capacity[i,j,2]
+            matrix[row_idx,col_idx_c2] = -c2 / heat_capacity[i,j,2]
+            matrix[row_idx,col_idx_c3] = -c3 / heat_capacity[i,j,2]
+            matrix[row_idx,col_idx_c4] = -c4 / heat_capacity[i,j,2]
 
             # Get rhs
             # rhs[row_idx] = -(c0 * Temp[col_idx_c0] - c1 * Temp[col_idx_c0] - c2 * Temp[col_idx_c2] - c3 * Temp[col_idx_c3] - c4 * Temp[col_idx_c4]) + 4 * heat_capacity[i,j]
@@ -222,22 +226,22 @@ function compute_matrix(mesh,num_steps_year,model)
     diff_total_sum_np = sum(diff_total_np)
     diff_total_sum_sp = sum(diff_total_sp) 
 
-    gc_np = geom * diff_total_sum_np + radiative_cooling_feedback + 2 * heat_capacity[1,1] * num_steps_year     # north pole 
-    gc_sp = geom * diff_total_sum_sp + radiative_cooling_feedback + 2 * heat_capacity[1,ny] * num_steps_year    # south pole
+    gc_np = 2 * num_steps_year + (geom * diff_total_sum_np + radiative_cooling_feedback) / heat_capacity[1,1,2]    # north pole 
+    gc_sp = 2 * num_steps_year + (geom * diff_total_sum_sp + radiative_cooling_feedback) / heat_capacity[1,ny,2]    # south pole 
 
     for i=1:nx
         #North pole
         row_idx = i
         matrix[row_idx,row_idx] = gc_np
         for ii=1:nx
-            matrix[row_idx,nx+ii] = - geom * diff_total_np[ii]
+            matrix[row_idx,nx+ii] = - geom * diff_total_np[ii] / heat_capacity[1,1,2]
         end
         
         #South pole
         row_idx = dof + 1 - i
         matrix[row_idx,row_idx] = gc_sp
         for ii=1:nx
-            matrix[row_idx,dof-2*nx+ii] = - geom * diff_total_sp[ii]
+            matrix[row_idx,dof-2*nx+ii] = - geom * diff_total_sp[ii] / heat_capacity[1,ny,2]
         end
     end
     return matrix
@@ -250,11 +254,11 @@ function update_rhs!(rhs, mesh, num_steps_year, time_step, temperature, model,  
         for i=1:nx
             row_idx = index1d(i,j,nx)
 
-            rhs[row_idx] = 4 * heat_capacity[i,j] * temperature[row_idx] * num_steps_year  - last_rhs[row_idx] + solar_forcing[i,j,time_step] - 2 * radiative_cooling_co2
+            rhs[row_idx] = 4 * temperature[row_idx] * num_steps_year  - last_rhs[row_idx] + solar_forcing[i,j,time_step] / heat_capacity[i,j,2] - (radiative_cooling_co2[2] / heat_capacity[i,j,2] + radiative_cooling_co2[1] / heat_capacity[i,j,1])
             if (time_step == 1)
-                rhs[row_idx] += solar_forcing[i,j,num_steps_year]
+                rhs[row_idx] += solar_forcing[i,j,num_steps_year] / heat_capacity[i,j,1]
             else
-                rhs[row_idx] += solar_forcing[i,j,time_step-1]
+                rhs[row_idx] += solar_forcing[i,j,time_step-1] / heat_capacity[i,j,1]
             end
         end
     end
@@ -264,7 +268,7 @@ end
 
 
 """
- update_monthly_params(...)
+ update_monthly_params!(...)
 
 * The routine updates monthly all important parameters of the model,
   which are necessary for the passed update settings.
@@ -273,10 +277,8 @@ end
 
 """
 
-function update_monthly_params(mesh, model, lu_decomposition, num_steps_year, time_step, update_heat_capacity, update_solar_forcing)
+function update_monthly_params!(model, lu_decomposition, mesh, num_steps_year, time_step, update_heat_capacity, update_solar_forcing)
    
-    lu_decomposition = lu_decomposition
-
     if mod(time_step,4) == 2 && time_step in (2:48)
         if update_heat_capacity == true && update_solar_forcing == true     
          update_model(model, mesh,time_step, true,true,false,true,true)
@@ -289,7 +291,9 @@ function update_monthly_params(mesh, model, lu_decomposition, num_steps_year, ti
         elseif update_heat_capacity == false && update_solar_forcing == false 
             update_model(model, mesh, time_step, false,false,false,false,false)
         end
-    end    
-
-    return lu_decomposition
+    else
+        if update_heat_capacity
+            model.heat_capacity[:,:,1] = model.heat_capacity[:,:,2]
+        end
+    end
 end

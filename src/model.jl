@@ -1,17 +1,17 @@
 using DelimitedFiles
 
 mutable struct Model
-    diffusion_coeff::Array{Float64,2}   # Diffusion coefficient: depends on the sine of latitude
-    heat_capacity::Array{Float64,2}     # Heat capacity: depends on the geography (land, ocean, ice, etc.)
-    albedo::Array{Float64,2}            # Albedo coefficient: depends on the geography (land, ocean, ice, etc.)
-    solar_forcing::Array{Float64,3}     # Time-dependent incoming solar radiation: depends on the orbital parameters and the albedo
-    radiative_cooling_co2::Float64      # Constant outgoing long-wave radiation: depends on the CO2 concentration 
-    radiative_cooling_feedback::Float64 # Outgoing long-wave radiation (feedback effects): models the water vapor cyces, lapse rate and cloud cover           
-    co_albedo::Array{Float64,2}         # Absorbed radiatian coefficient: depends on the albedo
-    compute_albedo::Bool                # Attribute for deciding whether the albedo should be calculated instead of being read from a file
-    geography::Array{Int8,2}            # Monthly land-sea-snow/sea ice distribution: depends on initial geography input if compute_sea_ice_extent is true
-    solar_irradiance::Array{Float64,2}  # Solar irradiance: depends on the orbital parameters
-    compute_sea_ice_extent::Bool        # Attribute for deciding whether sea ice extent should be calculated for the geography or read from given maps
+    diffusion_coeff::Array{Float64,2}       # Diffusion coefficient: depends on the sine of latitude
+    heat_capacity::Array{Float64,3}         # Heat capacity: depends on the geography (land, ocean, ice, etc.). Position [:,:,1]: Previous time step, position [:,:,2]: current time step.
+    albedo::Array{Float64,2}                # Albedo coefficient: depends on the geography (land, ocean, ice, etc.)
+    solar_forcing::Array{Float64,3}         # Time-dependent incoming solar radiation: depends on the orbital parameters and the albedo
+    radiative_cooling_co2::Array{Float64,1} # Outgoing long-wave radiation: depends on the CO2 concentration. Position 1: Previous time step, position 2: current time step.
+    radiative_cooling_feedback::Float64     # Outgoing long-wave radiation (feedback effects): models the water vapor cyces, lapse rate and cloud cover           
+    co_albedo::Array{Float64,2}             # Absorbed radiatian coefficient: depends on the albedo
+    compute_albedo::Bool                    # Attribute for deciding whether the albedo should be calculated instead of being read from a file
+    geography::Array{Int8,2}                # Monthly land-sea-snow/sea ice distribution: depends on initial geography input if compute_sea_ice_extent is true
+    solar_irradiance::Array{Float64,2}      # Solar irradiance: depends on the orbital parameters
+    compute_sea_ice_extent::Bool            # Attribute for deciding whether sea ice extent should be calculated for the geography or read from given maps
     year::Int64    
   end
 
@@ -20,9 +20,11 @@ mutable struct Model
     
     # Constants
     radiative_cooling_feedback = 2.15   #[W/m^2/°C]: sensitivity of the seasonal cycle and annual change in the forcing agents
-  
-    radiative_cooling_co2 = calc_radiative_cooling_co2(co2_concentration)
     
+    radiative_cooling_co2 = zeros(Float64,2)
+    radiative_cooling_co2[1] = calc_radiative_cooling_co2(co2_concentration) # Initialize both entries of radiative_cooling_co2 to the same value
+    radiative_cooling_co2[2] = radiative_cooling_co2[1]
+
     # Read parameters
     
     geography = read_geography(joinpath(@__DIR__, "..", "input", "The_World.dat"),nx,ny)
@@ -41,8 +43,12 @@ mutable struct Model
 
   
     diffusion_coeff = calc_diffusion_coefficients(geography,nx,ny)
-    heat_capacity, tau_land, tau_snow, tau_sea_ice, tau_mixed_layer = calc_heat_capacity(geography,radiative_cooling_feedback) # TODO: Remove unused variables
-  
+
+    # Compute heat capacity (we initialize the heat capacity in the previous time step as the current heat capacity)
+    heat_capacity = zeros(nx,ny,2)
+    calc_heat_capacity!(view(heat_capacity,:,:,1),geography,radiative_cooling_feedback) # TODO: Remove unused variables
+    heat_capacity[:,:,2] = heat_capacity[:,:,1]
+
     co_albedo = 1.0 .- albedo
     
     ecc = eccentricity(1950)
@@ -58,7 +64,8 @@ mutable struct Model
   end
   
   function set_co2_concentration!(model, co2_concentration)
-    model.radiative_cooling_co2 = calc_radiative_cooling_co2(co2_concentration)
+    model.radiative_cooling_co2[1] = model.radiative_cooling_co2[2]
+    model.radiative_cooling_co2[2] = calc_radiative_cooling_co2(co2_concentration)
   end
   
   
@@ -137,8 +144,8 @@ mutable struct Model
   end
   
   function set_heat_capacity!(model)
-  heatcap, tau_land, tau_snow, tau_sea_ice, tau_mixed_layer = calc_heat_capacity(model.geography, model.radiative_cooling_feedback)
-  model.heat_capacity = heatcap
+  model.heat_capacity[:,:,1] = model.heat_capacity[:,:,2]
+  calc_heat_capacity!(view(model.heat_capacity,:,:,2), model.geography, model.radiative_cooling_feedback)
   end
   
   function set_solar_forcing!(model, mesh)
@@ -285,7 +292,7 @@ mutable struct Model
   
   end
   
-  function calc_heat_capacity(geography,radiative_cooling_feedback=2.15)
+  function calc_heat_capacity!(heatcap,geography,radiative_cooling_feedback=2.15)
   
   # Depths 
   depth_atmos = 5000.         # meters #TODO: not used???
@@ -334,15 +341,6 @@ mutable struct Model
   c_snow   	= depth_snow * rho_snow * csp_snow/sec_per_yr
   c_mixed_layer = depth_mixed_layer*rho_water*csp_water/sec_per_yr
   
-  # Calculate radiative relaxation times for columns
-  tau_land = (c_soil + c_atmos)/radiative_cooling_feedback * days_per_yr
-  tau_snow = (c_snow + c_atmos)/radiative_cooling_feedback * days_per_yr
-  tau_sea_ice = (c_seaice + c_atmos)/radiative_cooling_feedback * days_per_yr
-  tau_mixed_layer = (c_mixed_layer + c_atmos)/radiative_cooling_feedback
-  
-  # define heatcap
-  heatcap = zeros(size(geography,1),size(geography,2))
-  
   # Assign the correct value of the heat capacity of the columns
   for j in 1:size(geography,2)
     for i in 1:size(geography,1)
@@ -365,7 +363,6 @@ mutable struct Model
     end
   end  
   
-  return heatcap, tau_land, tau_snow, tau_sea_ice, tau_mixed_layer
   end
   
   """
