@@ -48,25 +48,26 @@ function convert_image_to_world(imagefile, transpose_image=true, blurred=1, nlon
     # from RGB values to grayscale
     grayworld = Gray.(world)
     grayworld = real.(grayworld) .*255 # to get common grayscale from 0 (black) to 255 (white)
+    geography = zeros(Int, longitude, latitude)
 
     for lat = 1:latitude
         for long = 1:longitude
-            if grayworld[long, lat] > 0 && grayworld[long, lat] <= limit_ocean # ocean
-                grayworld[long, lat] = 5
+            if grayworld[long, lat] >= 0 && grayworld[long, lat] <= limit_ocean # ocean
+                geography[long, lat] = 5
             elseif grayworld[long, lat] > limit_ocean && grayworld[long, lat] <= limit_land # land
-                grayworld[long, lat] = 1
+                geography[long, lat] = 1
             elseif grayworld[long, lat] > limit_land && grayworld[long, lat] <= limit_seaice # sea ice
-                grayworld[long, lat] = 2
+                geography[long, lat] = 2
             elseif grayworld[long, lat] > limit_seaice && grayworld[long, lat] <= 256 # snow cover (snow has the highest albedo value)
-                grayworld[long, lat] = 3
+                geography[long, lat] = 3
             end
         end
     end
-
-    grayworld[:,1] .= mode(grayworld[:,1])
-    grayworld[:,latitude] .= mode(grayworld[:,latitude])
+  
+    geography[:,1] .= mode_for_poles(geography[:,1])
+    geography[:,latitude] .= mode_for_poles(geography[:,latitude])
    
-    return nn_interpolation(grayworld, nlongitude)
+    return nn_interpolation(geography, nlongitude)
 end
 
 """
@@ -107,23 +108,17 @@ function save_world_by_month(array_in, img_filename, target_dirpath)
     end
 end
 
-function mode(a, r= [1:8])
+function mode_for_poles(a)
     isempty(a) && throw(ArgumentError("mode is not defined for empty collections"))
     len = length(a)
-    r0 = r[1]
-    r1 = r[end]
-    cnts = zeros(Int, length(r))
-    mc = 0    # maximum count
-    mv = r0   # a value corresponding to maximum count
+    r0 = 1
+    r1 = 8
+    cnts = zeros(Int, 8)
     for i = 1:len
         x = a[i]
         if r0 <= x <= r1
-            c = (cnts[x - r0 + 1] += 1)
-            if c > mc
-                mc = c
-                mv = x
-            end
+            c = (cnts[x] += 1)
         end
     end
-    return mv
+    return findfirst(x -> x == maximum(cnts), cnts) 
 end
