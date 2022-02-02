@@ -64,8 +64,8 @@ function convert_image_to_world(imagefile, transpose_image=true, blurred=1, nlon
         end
     end
 
-    grayworld[:,1] .= StatsBase.mode(grayworld[:,1])
-    grayworld[:,latitude] .= StatsBase.mode(grayworld[:,latitude])
+    grayworld[:,1] .= mode(grayworld[:,1])
+    grayworld[:,latitude] .= mode(grayworld[:,latitude])
    
     return nn_interpolation(grayworld, nlongitude)
 end
@@ -106,4 +106,25 @@ function save_world_by_month(array_in, img_filename, target_dirpath)
             end
         end
     end
+end
+
+function mode(a, r= [1:8])
+    isempty(a) && throw(ArgumentError("mode is not defined for empty collections"))
+    len = length(a)
+    r0 = r[1]
+    r1 = r[end]
+    cnts = zeros(Int, length(r))
+    mc = 0    # maximum count
+    mv = r0   # a value corresponding to maximum count
+    for i = 1:len
+        @inbounds x = a[i]
+        if r0 <= x <= r1
+            @inbounds c = (cnts[x - r0 + 1] += 1)
+            if c > mc
+                mc = c
+                mv = x
+            end
+        end
+    end
+    return mv
 end
