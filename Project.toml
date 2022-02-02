@@ -19,7 +19,6 @@ PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
 QuartzImageIO = "dca85d43-d64c-5e67-8c65-017450d5d020"
 Requires = "ae029012-a4dd-5104-9daa-d747884805df"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
-StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
 
 [compat]
