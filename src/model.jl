@@ -69,12 +69,11 @@ mutable struct Model
   end
   
   
-"""
+ """
   update_model()
   Gives the possibility to interactively decide which parameters should be updated in a simulation
-"""
-
-  function update_model(model, mesh, time_step, update_geography=true, update_albedo=true, update_diffusion=true,update_heat_capacity=true, update_solar_forcing=true)
+ """
+ function update_model(model, mesh, time_step, update_geography=true, update_albedo=true, update_diffusion=true,update_heat_capacity=true, update_solar_forcing=true)
   @unpack nx,ny = mesh
   
   if update_geography == true
