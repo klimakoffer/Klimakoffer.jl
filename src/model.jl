@@ -26,21 +26,20 @@ mutable struct Model
     radiative_cooling_co2[2] = radiative_cooling_co2[1]
 
     # Read parameters
-    
-    geography = read_geography(joinpath(@__DIR__, "..", "input", "The_World.dat"),nx,ny)
+
+    geography = read_geography(joinpath(@__DIR__, "..", "input", "world", string("The_World", string(nx, "x", ny),".dat")),nx,ny)
     
     compute_sea_ice_extent = compute_sea_ice_extent
     year = sea_ice_extent_year
 
     compute_albedo = compute_albedo
+
     if compute_albedo == false
-      albedo = read_albedo(joinpath(@__DIR__, "..", "input", "albedo.dat"),nx,ny)
+      albedo = read_albedo(joinpath(@__DIR__, "..", "input", "albedo", string("albedo", string(nx, "x", ny), ".dat")),nx,ny)
     else
   
       albedo = calc_albedo(geography,nx,ny)
     end 
-
-
   
     diffusion_coeff = calc_diffusion_coefficients(geography,nx,ny)
 
@@ -54,11 +53,9 @@ mutable struct Model
     ecc = eccentricity(1950)
     ob = obliquity(1950)
     per = perihelion(1950)
-     
-    
-    solar_irradiance = calc_solar_forcing_params(nlatitude=ny, ntimesteps=num_steps_year, ecc=ecc, ob=ob, per=per)
+
+    solar_irradiance = calc_solar_forcing_params(nlongitude=nx, nlatitude=ny, ntimesteps=num_steps_year, ecc=ecc, ob=ob, per=per)
     solar_forcing = calc_solar_forcing(co_albedo, solar_irradiance, nx, ny, num_steps_year)
-  
     
     return Model(diffusion_coeff, heat_capacity, albedo, solar_forcing, radiative_cooling_co2, radiative_cooling_feedback,co_albedo,compute_albedo,geography,solar_irradiance,compute_sea_ice_extent,year)
   end
@@ -239,11 +236,14 @@ mutable struct Model
     ob  = 0.409253
     per = 1.783037  
   """
-  
-  function calc_solar_forcing_params(yr=0; nlatitude=65, ntimesteps=48, solar_cycle=false, s0=1371.685, orbital=false, ecc=0.016740, ob=0.409253, per=1.783037)
+  function calc_solar_forcing_params(yr=0; nlongitude=nx, nlatitude=ny, ntimesteps=48, solar_cycle=false, s0=1371.685, orbital=false, ecc=0.016740, ob=0.409253, per=1.783037)
   # Calculate the sin, cos, and tan of the latitudes of Earth from the
   # colatitudes, calculate the insolation
   
+  # nlatitude   = ny
+  # nlongitude  = nx
+  # ntimesteps  = num_steps_year
+
   dy = pi/(nlatitude-1.0)
   dt = 1.0 / ntimesteps
   
@@ -400,9 +400,10 @@ mutable struct Model
   end
   
   return diffusion
-  end
-  
-  function read_albedo(filepath="albedo.dat",nlongitude=128,nlatitude=65)
+end
+
+function read_albedo(filepath=joinpath(@__DIR__,"..","input","albedo","albedo128x65.dat"),nlongitude=128,nlatitude=65)
+
   result = zeros(Float64,nlongitude,nlatitude)
   open(filepath) do fh
       for lat = 1:nlatitude
@@ -438,9 +439,9 @@ mutable struct Model
     end
   end
   return result
-  end
-  
-  function read_geography(filepath="The_World.dat",nlongitude=128,nlatitude=65)
+end
+
+function read_geography(filepath=joinpath(@__DIR__,"..","input","world","The_World128x65.dat"),nlongitude=128,nlatitude=65)
   result = zeros(Int8,nlongitude,nlatitude)
   open(filepath) do fh
       for lat = 1:nlatitude
@@ -648,7 +649,7 @@ elseif mod(time_step,4) == 2
  end
 
   nlat::Int64 = (nlatitude-1)*0.5
-  geography_start = read_geography(joinpath(@__DIR__, "..", "input", "The_World.dat"),128,65)
+  geography_start = read_geography(joinpath(@__DIR__, "..", "input","world", "The_World128x65.dat"),128,65)
   geo = geography_start[:,1:nlat]
 
   if month == 0 || month == 1
