@@ -117,9 +117,9 @@ function mode(a, r= [1:8])
     mc = 0    # maximum count
     mv = r0   # a value corresponding to maximum count
     for i = 1:len
-        @inbounds x = a[i]
+        x = a[i]
         if r0 <= x <= r1
-            @inbounds c = (cnts[x - r0 + 1] += 1)
+            c = (cnts[x - r0 + 1] += 1)
             if c > mc
                 mc = c
                 mv = x
