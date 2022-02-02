@@ -32,7 +32,7 @@ EXAMPLES_DIR = joinpath(pathof(Klimakoffer) |> dirname |> dirname, "examples")
     println("")
     @test_nowarn include(joinpath(EXAMPLES_DIR, test_file))
 
-    @test isapprox(GlobTemp, 14.495916499277554, atol=1e-12)
+    @test isapprox(GlobTemp, 14.490442457180537, atol=1e-12)
   end
 
   test_file = "transient_temperature_co2.txt"
@@ -42,7 +42,17 @@ EXAMPLES_DIR = joinpath(pathof(Klimakoffer) |> dirname |> dirname, "examples")
     println("")
     @test_nowarn include(joinpath(EXAMPLES_DIR, test_file))
 
-    @test isapprox(sol.mean_temperature_yearly[end], 15.12471138630498, atol=1e-12)
+    @test isapprox(sol.mean_temperature_yearly[end], 15.124553126197249, atol=1e-12)
+  end
+
+  test_file = "equilibrium_temperature_sea_ice_extent.jl" 
+  @testset "$test_file" begin
+    println("")
+    println("Running ",test_file)
+    println("")
+    @test_nowarn include(joinpath(EXAMPLES_DIR, test_file))
+
+    @test isapprox(GlobTemp, 13.552715282159404, atol=1e-12)
   end
 
   @testset "Printing types to the REPL" begin
