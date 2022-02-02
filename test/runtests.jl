@@ -15,6 +15,76 @@ EXAMPLES_DIR = joinpath(pathof(Klimakoffer) |> dirname |> dirname, "examples")
     @test isapprox(GlobTemp, 14.484963368770806, atol=1e-12)
   end
 
+  test_file = "equilibrium_temperature_1950_150x75.jl" 
+  @testset "$test_file" begin
+    println("")
+    println("Running ",test_file)
+    println("")
+    @test_nowarn include(joinpath(EXAMPLES_DIR, test_file))
+
+    @test isapprox(GlobTemp, 14.967892384136475, atol=1e-10)
+  end
+
+  test_file = "land_coverage_from_scaled_map.jl" 
+  @testset "$test_file" begin
+    println("")
+    println("Running ",test_file)
+    println("")
+    @test_nowarn include(joinpath(EXAMPLES_DIR, test_file))
+
+    @test isapprox(landcover, 23.341346153846153, atol=1.5) # aktuell ist es der Wert der originalen 128x65 Karte aus dem Klimakoffer
+  end
+
+  test_file = "outline_from_world.jl" 
+  @testset "$test_file" begin
+    println("")
+    println("Running ",test_file)
+    println("")
+    @test_nowarn include(joinpath(EXAMPLES_DIR, test_file))
+
+    @test isapprox(res, 0, atol=0) 
+  end
+
+  test_file = "image_to_world.jl" 
+  @testset "$test_file" begin
+    println("")
+    println("Running ",test_file)
+    println("")
+    @test_nowarn include(joinpath(EXAMPLES_DIR, test_file))
+
+    @test isapprox(result, 0, atol=0.5) 
+  end
+
+  test_file = "clear_map.jl" 
+  @testset "$test_file" begin
+    println("")
+    println("Running ",test_file)
+    println("")
+    @test_nowarn include(joinpath(EXAMPLES_DIR, test_file))
+
+    @test isapprox(res, 0, atol=0) 
+  end
+
+  test_file = "upscale_world.jl" 
+  @testset "$test_file" begin
+    println("")
+    println("Running ",test_file)
+    println("")
+    @test_nowarn include(joinpath(EXAMPLES_DIR, test_file))
+
+    @test isapprox(res, 0, atol=0) 
+  end
+
+  test_file = "upscale_albedo.jl" 
+  @testset "$test_file" begin
+    println("")
+    println("Running ",test_file)
+    println("")
+    @test_nowarn include(joinpath(EXAMPLES_DIR, test_file))
+
+    @test isapprox(res, 0, atol=0) 
+  end
+
   test_file = "equilibrium_temperature_albedo.jl" 
   @testset "$test_file" begin
     println("")
@@ -32,7 +102,7 @@ EXAMPLES_DIR = joinpath(pathof(Klimakoffer) |> dirname |> dirname, "examples")
     println("")
     @test_nowarn include(joinpath(EXAMPLES_DIR, test_file))
 
-    @test isapprox(GlobTemp, 14.495916499277554, atol=1e-12)
+    @test isapprox(GlobTemp, 14.490442457180537, atol=1e-12)
   end
 
   test_file = "transient_temperature_co2.txt"
@@ -42,7 +112,17 @@ EXAMPLES_DIR = joinpath(pathof(Klimakoffer) |> dirname |> dirname, "examples")
     println("")
     @test_nowarn include(joinpath(EXAMPLES_DIR, test_file))
 
-    @test isapprox(sol.mean_temperature_yearly[end], 15.12471138630498, atol=1e-12)
+    @test isapprox(sol.mean_temperature_yearly[end], 15.124553126197249, atol=1e-12)
+  end
+
+  test_file = "equilibrium_temperature_sea_ice_extent.jl" 
+  @testset "$test_file" begin
+    println("")
+    println("Running ",test_file)
+    println("")
+    @test_nowarn include(joinpath(EXAMPLES_DIR, test_file))
+
+    @test isapprox(GlobTemp, 13.552715282159404, atol=1e-12)
   end
 
   test_file = "equilibrium_temperature_sea_ice_extent.jl" 

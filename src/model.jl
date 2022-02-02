@@ -1,33 +1,37 @@
 using DelimitedFiles
 
 mutable struct Model
-    diffusion_coeff::Array{Float64,2}   # Diffusion coefficient: depends on the sine of latitude
-    heat_capacity::Array{Float64,2}     # Heat capacity: depends on the geography (land, ocean, ice, etc.)
-    albedo::Array{Float64,2}            # Albedo coefficient: depends on the geography (land, ocean, ice, etc.)
-    solar_forcing::Array{Float64,3}     # Time-dependent incoming solar radiation: depends on the orbital parameters and the albedo
-    radiative_cooling_co2::Float64      # Constant outgoing long-wave radiation: depends on the CO2 concentration 
-    radiative_cooling_feedback::Float64 # Outgoing long-wave radiation (feedback effects): models the water vapor cyces, lapse rate and cloud cover           
-    co_albedo::Array{Float64,2}         # Absorbed radiatian coefficient: depends on the albedo
-    compute_albedo::Bool                # Attribute for deciding whether the albedo should be calculated instead of being read from a file
-    geography::Array{Int8,2}            # Monthly land-sea-snow/sea ice distribution: depends on initial geography input if compute_sea_ice_extent is true
-    solar::Array{Float64,2}             # Solar irradiance: depends on the orbital parameters
-    compute_sea_ice_extent::Bool        # Attribute for deciding whether sea ice extent should be calculated for the geography or read from given maps
-    sea_ice_regions::Int64              # Attribute for computed sea ice regions (Northern Hemisphere,Southern Hemisphere,both)
-    area::Array{Float64,1}              # Area of each cell on the surface of the sphere
-    year::Int64                         # Selectable model year for sea ice extent (1979 - 2021)
+    diffusion_coeff::Array{Float64,2}       # Diffusion coefficient: depends on the sine of latitude
+    heat_capacity::Array{Float64,3}         # Heat capacity: depends on the geography (land, ocean, ice, etc.). Position [:,:,1]: Previous time step, position [:,:,2]: current time step.
+    albedo::Array{Float64,2}                # Albedo coefficient: depends on the geography (land, ocean, ice, etc.)
+    solar_forcing::Array{Float64,3}         # Time-dependent incoming solar radiation: depends on the orbital parameters and the albedo
+    radiative_cooling_co2::Array{Float64,1} # Outgoing long-wave radiation: depends on the CO2 concentration. Position 1: Previous time step, position 2: current time step.
+    radiative_cooling_feedback::Float64     # Outgoing long-wave radiation (feedback effects): models the water vapor cyces, lapse rate and cloud cover           
+    co_albedo::Array{Float64,2}             # Absorbed radiatian coefficient: depends on the albedo
+    compute_albedo::Bool                    # Attribute for deciding whether the albedo should be calculated instead of being read from a file
+    geography::Array{Int8,2}                # Monthly land-sea-snow/sea ice distribution: depends on initial geography input if compute_sea_ice_extent is true
+    solar_irradiance::Array{Float64,2}      # Solar irradiance: depends on the orbital parameters
+    compute_sea_ice_extent::Bool            # Attribute for deciding whether sea ice extent should be calculated for the geography or read from given maps
+    sea_ice_regions::Int64                  # Attribute for computed sea ice regions (Northern Hemisphere,Southern Hemisphere,both)
+    area::Array{Float64,1}                  # Area of each cell on the surface of the sphere
+    year::Int64                             # Selectable model year for sea ice extent (1979 - 2021)
   end
 
-  function Model(mesh, num_steps_year; co2_concentration = 315.0, compute_albedo = false, compute_sea_ice_extent = false, sea_ice_regions = 2 , sea_ice_extent_year = 1979) # co2_concentration in [ppm], default value from year 1950
+  function Model(mesh, num_steps_year; co2_concentration = 315.0, compute_albedo = false, compute_sea_ice_extent = false, sea_ice_extent_year = 1979) # co2_concentration in [ppm], default value from year 1950
     @unpack nx,ny = mesh
     
     # Constants
     radiative_cooling_feedback = 2.15   #[W/m^2/°C]: sensitivity of the seasonal cycle and annual change in the forcing agents
-  
-    radiative_cooling_co2 = calc_radiative_cooling_co2(co2_concentration)
     
+    radiative_cooling_co2 = zeros(Float64,2)
+    radiative_cooling_co2[1] = calc_radiative_cooling_co2(co2_concentration) # Initialize both entries of radiative_cooling_co2 to the same value
+    radiative_cooling_co2[2] = radiative_cooling_co2[1]
+
     # Read parameters
+
+    geography = read_geography(joinpath(@__DIR__, "..", "input", "world", string("The_World", string(nx, "x", ny),".dat")),nx,ny)
     
-    geography = read_geography(joinpath(@__DIR__, "..", "input", "The_World.dat"),nx,ny)
+   
     
     compute_sea_ice_extent = compute_sea_ice_extent
     sea_ice_regions = sea_ice_regions
@@ -37,40 +41,44 @@ mutable struct Model
     year = sea_ice_extent_year
 
     compute_albedo = compute_albedo
+
     if compute_albedo == false
-      albedo = read_albedo(joinpath(@__DIR__, "..", "input", "albedo.dat"),nx,ny)
+      albedo = read_albedo(joinpath(@__DIR__, "..", "input", "albedo", string("albedo", string(nx, "x", ny), ".dat")),nx,ny)
     else
   
       albedo = calc_albedo(geography,nx,ny)
     end 
-
-
   
     diffusion_coeff = calc_diffusion_coefficients(geography,nx,ny)
-    heat_capacity, tau_land, tau_snow, tau_sea_ice, tau_mixed_layer = calc_heat_capacity(geography,radiative_cooling_feedback) # TODO: Remove unused variables
-  
+
+    # Compute heat capacity (we initialize the heat capacity in the previous time step as the current heat capacity)
+    heat_capacity = zeros(nx,ny,2)
+    calc_heat_capacity!(view(heat_capacity,:,:,1),geography,radiative_cooling_feedback) # TODO: Remove unused variables
+    heat_capacity[:,:,2] = heat_capacity[:,:,1]
+
     co_albedo = 1.0 .- albedo
     
     ecc = eccentricity(1950)
     ob = obliquity(1950)
     per = perihelion(1950)
-     
-    
-    lambda,solar = calc_solar_forcing_params(nlatitude=ny, ntimesteps=num_steps_year, ecc=ecc, ob=ob, per=per)
-    solar_forcing = calc_solar_forcing(co_albedo, solar,nx,ny,num_steps_year)
-  
+
+    solar_irradiance = calc_solar_forcing_params(nlongitude=nx, nlatitude=ny, ntimesteps=num_steps_year, ecc=ecc, ob=ob, per=per)
+    solar_forcing = calc_solar_forcing(co_albedo, solar_irradiance, nx, ny, num_steps_year)
     
     return Model(diffusion_coeff, heat_capacity, albedo, solar_forcing, radiative_cooling_co2, radiative_cooling_feedback,co_albedo,compute_albedo,geography,solar, compute_sea_ice_extent, sea_ice_regions, area, year)
   end
   
   function set_co2_concentration!(model, co2_concentration)
-    model.radiative_cooling_co2 = calc_radiative_cooling_co2(co2_concentration)
+    model.radiative_cooling_co2[1] = model.radiative_cooling_co2[2]
+    model.radiative_cooling_co2[2] = calc_radiative_cooling_co2(co2_concentration)
   end
   
   
-  # Gives the possibility to interactively decide which parameters should be updated in a simulation
-
-  function update_model(model, mesh, time_step, update_geography=true, update_albedo=true, update_diffusion=true,update_heat_capacity=true, update_solar_forcing=true)
+ """
+  update_model()
+  Gives the possibility to interactively decide which parameters should be updated in a simulation
+ """
+ function update_model(model, mesh, time_step, update_geography=true, update_albedo=true, update_diffusion=true,update_heat_capacity=true, update_solar_forcing=true)
   @unpack nx,ny = mesh
   
   if update_geography == true
@@ -94,12 +102,13 @@ mutable struct Model
   end
   
   
+  # TODO: this routine works only for NT = 48
+
   function set_geography!(model, mesh, time_step)
   @unpack nx,ny = mesh
 
   # monthly geography can be updated by reading the input maps or by computing the sea ice extent
   # first time step is the last week of March as the simulation starts at the vernal equinox
-
    if model.compute_sea_ice_extent == false
       if time_step in (1,46,47,48)
         model.geography = read_geography(joinpath(@__DIR__, "..", "input","world", "year2004", string("The_World_from_image", nx, "x", ny,"_1")),nx,ny) 
@@ -152,14 +161,14 @@ mutable struct Model
   end
   
   function set_heat_capacity!(model)
-  heatcap, tau_land, tau_snow, tau_sea_ice, tau_mixed_layer = calc_heat_capacity(model.geography, model.radiative_cooling_feedback)
-  model.heat_capacity = heatcap
+  model.heat_capacity[:,:,1] = model.heat_capacity[:,:,2]
+  calc_heat_capacity!(view(model.heat_capacity,:,:,2), model.geography, model.radiative_cooling_feedback)
   end
   
   function set_solar_forcing!(model, mesh)
   @unpack nx,ny = mesh
-  solar = model.solar
-  model.solar_forcing = calc_solar_forcing(model.co_albedo, solar, nx, ny)
+  solar_irradiance = model.solar_irradiance
+  model.solar_forcing = calc_solar_forcing(model.co_albedo, solar_irradiance, nx, ny)
   end
   
   
@@ -240,7 +249,7 @@ mutable struct Model
   end
   
   """
-  calc_solar_forcing()
+  calc_solar_forcing_params()
   
   * Default s0 is 1371.685 [W/m²] (Current solar constant)
   * Default orbital parameters of correspond to year 1950 AD:
@@ -248,11 +257,14 @@ mutable struct Model
     ob  = 0.409253
     per = 1.783037  
   """
-  
-  function calc_solar_forcing_params(yr=0; nlatitude=65, ntimesteps=48, solar_cycle=false, s0=1371.685, orbital=false, ecc=0.016740, ob=0.409253, per=1.783037)
+  function calc_solar_forcing_params(yr=0; nlongitude=nx, nlatitude=ny, ntimesteps=48, solar_cycle=false, s0=1371.685, orbital=false, ecc=0.016740, ob=0.409253, per=1.783037)
   # Calculate the sin, cos, and tan of the latitudes of Earth from the
   # colatitudes, calculate the insolation
   
+  # nlatitude   = ny
+  # nlongitude  = nx
+  # ntimesteps  = num_steps_year
+
   dy = pi/(nlatitude-1.0)
   dt = 1.0 / ntimesteps
   
@@ -280,7 +292,7 @@ mutable struct Model
     lambda, solar = _calc_insolation(dt, ob, ecc, per, ntimesteps, nlatitude, siny, cosy, tany, s0)
   end
   
-  return lambda, solar
+  return solar
   
   end
   
@@ -300,7 +312,7 @@ mutable struct Model
   
   end
   
-  function calc_heat_capacity(geography,radiative_cooling_feedback=2.15)
+  function calc_heat_capacity!(heatcap,geography,radiative_cooling_feedback=2.15)
   
   # Depths 
   depth_atmos = 5000.         # meters #TODO: not used???
@@ -349,15 +361,6 @@ mutable struct Model
   c_snow   	= depth_snow * rho_snow * csp_snow/sec_per_yr
   c_mixed_layer = depth_mixed_layer*rho_water*csp_water/sec_per_yr
   
-  # Calculate radiative relaxation times for columns
-  tau_land = (c_soil + c_atmos)/radiative_cooling_feedback * days_per_yr
-  tau_snow = (c_snow + c_atmos)/radiative_cooling_feedback * days_per_yr
-  tau_sea_ice = (c_seaice + c_atmos)/radiative_cooling_feedback * days_per_yr
-  tau_mixed_layer = (c_mixed_layer + c_atmos)/radiative_cooling_feedback
-  
-  # define heatcap
-  heatcap = zeros(size(geography,1),size(geography,2))
-  
   # Assign the correct value of the heat capacity of the columns
   for j in 1:size(geography,2)
     for i in 1:size(geography,1)
@@ -380,7 +383,6 @@ mutable struct Model
     end
   end  
   
-  return heatcap, tau_land, tau_snow, tau_sea_ice, tau_mixed_layer
   end
   
   """
@@ -419,38 +421,10 @@ mutable struct Model
   end
   
   return diffusion
-  end
-  
-  
-  # Calculate the area weighted mean of the diffusion at the mid-point between
-  # the pole and the first ring of grid points.
-  
-  # If you need the mean diffusion at the poles just do the following:
-  #   mean_diffusion_north = sum(diffusion_north)
-  #   mean_diffusion_south = sum(diffusion_south)
-  
-  ## function calc_diffusion_coefficients_poles(diffusion,nlongitude=128,nlatitude=65)
-  
-  ##   # Fractional areas for the poles
-  ##   angle  = pi/real(nlatitude-1)
-  ##   area_1 = 0.5*(1.0 - cos(0.5*angle))
-  ##   area_2 = sin(0.5*angle)*sin(angle)/float(nlongitude)
-  
-  ##   total_area = area_1 + area_2
-  
-  ##   diffusion_north = zeros(Float64,nlongitude)
-  ##   diffusion_south = zeros(Float64,nlongitude)
-  
-  ##   for i = 1:nlongitude
-  ##       diffusion_north[i] = (area_1*diffusion[1,        1] + area_2*diffusion[i,          2])/total_area
-  ##       diffusion_south[i] = (area_1*diffusion[1,nlatitude] + area_2*diffusion[i,nlatitude-1])/total_area
-  ##   end
-  
-  ##   return diffusion_north,diffusion_south
-  ## end
-  
-  
-  function read_albedo(filepath="albedo.dat",nlongitude=128,nlatitude=65)
+end
+
+function read_albedo(filepath=joinpath(@__DIR__,"..","input","albedo","albedo128x65.dat"),nlongitude=128,nlatitude=65)
+
   result = zeros(Float64,nlongitude,nlatitude)
   open(filepath) do fh
       for lat = 1:nlatitude
@@ -486,9 +460,9 @@ mutable struct Model
     end
   end
   return result
-  end
-  
-  function read_geography(filepath="The_World.dat",nlongitude=128,nlatitude=65)
+end
+
+function read_geography(filepath=joinpath(@__DIR__,"..","input","world","The_World128x65.dat"),nlongitude=128,nlatitude=65)
   result = zeros(Int8,nlongitude,nlatitude)
   open(filepath) do fh
       for lat = 1:nlatitude

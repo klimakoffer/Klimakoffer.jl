@@ -1,6 +1,6 @@
 
 # Sea Ice Index : sea ice extent in millions of square kilometers for the Northern Hemisphere
-# Since the simulation starts at the vernal euqinox, the vector for reading the annual sea ice extent
+# Since the simulation starts at the vernal equinox, the vector for reading the annual sea ice extent
 # starts in March of the selected model year and ends in February of the following year.
 
 
