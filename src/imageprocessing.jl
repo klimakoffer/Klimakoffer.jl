@@ -1,6 +1,5 @@
 using Images, ImageFiltering
 using FileIO
-using StatsBase
 
 """
     images_to_maps(...)
