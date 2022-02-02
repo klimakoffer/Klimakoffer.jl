@@ -629,7 +629,6 @@ calc_geography_per_month_extent!()
   sea ice reduction: starts from bottom left to top right
 
 """
-
 function calc_geography_per_month_extent!(geography,annual_sea_ice_extent, time_step, nlongitude=128, nlatitude =65)
 
   month::Int64 = 0
