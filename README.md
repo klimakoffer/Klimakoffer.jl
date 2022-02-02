@@ -22,7 +22,7 @@ Alternatively, you can just *view* the notebook by selecting the "render nbviewe
 ## Installation
 If you have not yet installed Julia, please
 [follow the instructions for your operating system](https://julialang.org/downloads/platform/).
-Klimakoffer works with Julia v1.6.
+Klimakoffer works with Julia v1.7.
 
 To obtain Klimakoffer, clone the repository and use the Julia package manager
 `Pkg` to install all dependencies:
