@@ -605,7 +605,6 @@ read_sea_ice_extent_N()
 * returns a vector with sea ice extent per month from March to February
 
 """
-
 function read_sea_ice_extent_N(year=1979)
 
   matrix = readdlm(joinpath(@__DIR__,"..","input/sea_ice_data/","N_ALL_extent_v3.0.dat"),comments=true)
