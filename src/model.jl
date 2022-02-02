@@ -54,7 +54,7 @@ mutable struct Model
     ob = obliquity(1950)
     per = perihelion(1950)
 
-    solar_irradiance = calc_solar_forcing_params(nx=nx, ny=ny, num_steps_year=num_steps_year, solar_cycle=false, s0=1371.685, orbital=false, ecc=ecc, ob=ob, per=per)
+    solar_irradiance = calc_solar_forcing_params(nlongitude=nx, nlatitude=ny, ntimesteps=num_steps_year, ecc=ecc, ob=ob, per=per)
     solar_forcing = calc_solar_forcing(co_albedo, solar_irradiance, nx, ny, num_steps_year)
     
     return Model(diffusion_coeff, heat_capacity, albedo, solar_forcing, radiative_cooling_co2, radiative_cooling_feedback,co_albedo,compute_albedo,geography,solar_irradiance,compute_sea_ice_extent,year)
@@ -236,13 +236,13 @@ mutable struct Model
     ob  = 0.409253
     per = 1.783037  
   """
-  function calc_solar_forcing_params(yr=0; nx, ny, ntimesteps=48, solar_cycle=false, s0=1371.685, orbital=false, ecc=0.016740, ob=0.409253, per=1.783037)
+  function calc_solar_forcing_params(yr=0; nlongitude=nx, nlatitude=ny, ntimesteps=48, solar_cycle=false, s0=1371.685, orbital=false, ecc=0.016740, ob=0.409253, per=1.783037)
   # Calculate the sin, cos, and tan of the latitudes of Earth from the
   # colatitudes, calculate the insolation
   
-  nlatitude   = ny
-  nlongitude  = nx
-  ntimesteps  = num_steps_year
+  # nlatitude   = ny
+  # nlongitude  = nx
+  # ntimesteps  = num_steps_year
 
   dy = pi/(nlatitude-1.0)
   dt = 1.0 / ntimesteps
@@ -649,7 +649,7 @@ elseif mod(time_step,4) == 2
  end
 
   nlat::Int64 = (nlatitude-1)*0.5
-  geography_start = read_geography(joinpath(@__DIR__, "..", "input", "The_World.dat"),128,65)
+  geography_start = read_geography(joinpath(@__DIR__, "..", "input","world", "The_World128x65.dat"),128,65)
   geo = geography_start[:,1:nlat]
 
   if month == 0 || month == 1
