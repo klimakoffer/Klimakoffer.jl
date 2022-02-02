@@ -276,7 +276,6 @@ end
   Update start is the first week of April.
 
 """
-
 function update_monthly_params!(model, lu_decomposition, mesh, num_steps_year, time_step, update_heat_capacity, update_solar_forcing)
    
     if mod(time_step,4) == 2 && time_step in (2:48)
