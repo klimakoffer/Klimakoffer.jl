@@ -111,8 +111,8 @@ mutable struct Model
   # first time step is the last week of March as the simulation starts at the vernal equinox
    if model.compute_sea_ice_extent == false
       if time_step in (1,46,47,48)
-        model.geography = read_geography(joinpath(@__DIR__, "..", "input","world", "year2004", string("The_World_from_image", nx, "x", ny,"_1")),nx,ny) 
-    
+        model.geography = read_geography(joinpath(@__DIR__, "..", "input","world", "monthly_maps", string("The_World_from_image", nx, "x", ny,"_1", ".dat")),nx,ny)
+          
       elseif mod(time_step,4) == 2 && time_step in (2:45)
        month::Int64 = 1
         for nt in 1:time_step
@@ -120,7 +120,7 @@ mutable struct Model
            month +=1
           end
         end
-        model.geography = read_geography(joinpath(@__DIR__, "..", "input","world", "year2004", string("The_World_from_image", nx, "x", ny,"_",month)),nx,ny)
+        model.geography = read_geography(joinpath(@__DIR__, "..", "input","world", "monthly_maps", string("The_World_from_image", nx, "x", ny,"_",month, ".dat")),nx,ny)
       end
 
      # Case for sea ice distribution for the Northern Hemisphere 
@@ -360,13 +360,7 @@ mutable struct Model
   c_seaice 	= depth_seaice*rho_sea_ice*csp_sea_ice/sec_per_yr
   c_snow   	= depth_snow * rho_snow * csp_snow/sec_per_yr
   c_mixed_layer = depth_mixed_layer*rho_water*csp_water/sec_per_yr
-#=
-  println(string("c_atmos = ", c_atmos*sec_per_yr))
-  println(string("c_soil = ", c_soil*sec_per_yr))
-  println(string("c_seaice = ", c_seaice*sec_per_yr))
-  println(string("c_snow = ", c_snow*sec_per_yr))
-  println(string("c_mixed_layer= ", c_mixed_layer*sec_per_yr))
-  =#
+
   
   # Assign the correct value of the heat capacity of the columns
   for j in 1:size(geography,2)
