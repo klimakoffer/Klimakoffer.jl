@@ -296,11 +296,14 @@ mutable struct Model
   
   end
   
+  """
+  calc_solar_forcing()
   
+  Calcualtes the seasonal forcing 
+  """
   function calc_solar_forcing(co_albedo, solar, nlongitude=128, nlatitude=65, ntimesteps=48)
   
   solar_forcing = zeros(Float64,nlongitude,nlatitude,ntimesteps)
-  # calcualte the seasonal forcing
   for ts in 1:ntimesteps
     for j in 1:nlatitude
       for i in 1:nlongitude
@@ -434,11 +437,15 @@ function read_albedo(filepath=joinpath(@__DIR__,"..","input","albedo","albedo128
      end
   end
   return result
-  end
+end
   
-  #Calculate the albedo depending on the geography
 
-  function calc_albedo(geography,nlongitude=128,nlatitude=65)
+  """
+  alc_albedo()
+  
+  Calcualtes the albedo depending on the geography when compute_albedo is set to true
+  """
+function calc_albedo(geography,nlongitude=128,nlatitude=65)
   result = zeros(Float64,nlongitude,nlatitude)
   dtheta= pi/(nlatitude-1.0)
   
@@ -620,7 +627,12 @@ function read_geography(filepath=joinpath(@__DIR__,"..","input","world","The_Wor
   end
 
 
+  """
+  calc_area()
   
+  Calcualtes the fractional area depending on the latitude in millions of square kilometers.
+  Total surface are of the earth is set to 510.000.000 km^2.
+  """ 
 function calc_area(mesh) 
   @unpack nx,ny,area = mesh
 
@@ -635,6 +647,11 @@ function calc_area(mesh)
 end
 
 
+"""
+calc_init_geography()
+
+Deletes all sea ice cells from the launch geography except for those at the North Pole.
+""" 
 function calc_init_geography(geography) 
 
   temp_geo = geography[:,2:65]
@@ -648,6 +665,11 @@ function calc_init_geography(geography)
 end
 
 
+"""
+calc_current_extent_N()
+
+Calculates the current sea ice extent in the Northern Hemisphere.
+""" 
 function calc_current_extent_N(geography,area_frac,nlongitude=128, nlatitude =65) 
 
   nlat::Int64 = (nlatitude-1)*0.5
@@ -661,7 +683,11 @@ function calc_current_extent_N(geography,area_frac,nlongitude=128, nlatitude =65
 end
 
 
+"""
+calc_current_extent_S()
 
+Calculates the current sea ice extent in the Southern Hemisphere.
+""" 
 function calc_current_extent_S(geography,area_frac,nlongitude=128, nlatitude =65) 
 
   nlat_start::Int64 = ceil(nlatitude*0.5)
@@ -691,6 +717,13 @@ function read_sea_ice_extent_N(year=1979)
   return annual_sea_ice_extent
 end
 
+
+"""
+read_sea_ice_extent_S()
+* Default year: 1979
+* Possible years to pick annual sea ice extent for the Southern Hemisphere : 1979 to 2020
+* returns a vector with sea ice extent per month from March to February
+"""
 function read_sea_ice_extent_S(year=1979)
 
   matrix = readdlm(joinpath(@__DIR__,"..","input/sea_ice_data/","S_ALL_extent_v3.0.dat"),comments=true)
@@ -702,12 +735,10 @@ end
 
 
 """
-calc_geography_per_month_extent!()
-* This routine a new geography matrix by determining sea ice extent with a monthly rate of change
+calculate_new_extent_N()
+* This routine computes a new geography matrix by determining sea ice extent with a monthly rate of change
   and mapping extent or reduction to adjacent sea ice cells and ocean cells on the Northern Hemisphere.
-* This routine assumes that the sea ice extent of the geography file corresponds to 
-  the measured sea ice at the vernal equinox.
- 
+
 * There is a bias in the order sea ice cells are added/removed.
   sea ice extent: starts from top left to bottom right
   sea ice reduction: starts from bottom left to top right
@@ -773,8 +804,15 @@ function calculate_new_extent_N(geography,new_extent,area_frac, nlongitude=128, 
 end
 
 
-# Sea ice distribution for the Southern Hemisphere 
+"""
+calculate_new_extent_S()
+* This routine computes a new geography matrix by determining sea ice extent with a monthly rate of change
+  and mapping extent or reduction to adjacent sea ice cells and ocean cells on the Southern Hemisphere.
 
+* There is a bias in the order sea ice cells are added/removed.
+  sea ice extent: starts from bottom left to top right
+  sea ice reduction: starts from top left to bottom right
+"""
 function calculate_new_extent_S(geography,new_extent,area_frac, nlongitude=128, nlatitude =65)
 
   nlat_start::Int64 = ceil(nlatitude*0.5)
@@ -835,8 +873,10 @@ function calculate_new_extent_S(geography,new_extent,area_frac, nlongitude=128, 
 end
 
 
-# Northern Hemisphere
-
+"""
+calc_geography_per_month_extent_N()
+This routine computes a sea ice distribution for the Northern Hemisphere and the month correponding in the time step.
+"""
 function calc_geography_per_month_extent_N(geography,annual_sea_ice_extent_N,area_frac, time_step, nlongitude=128, nlatitude =65)
 
   month::Int64 = 0
@@ -873,8 +913,10 @@ function calc_geography_per_month_extent_N(geography,annual_sea_ice_extent_N,are
 end    
 
 
-# Southern Hemisphere
-
+"""
+calc_geography_per_month_extent_S()
+This routine computes a sea ice distribution for the Southern Hemisphere and the month correponding in the time step.
+"""
 function calc_geography_per_month_extent_S(geography,annual_sea_ice_extent_S,area_frac, sea_ice_regions, time_step, nlongitude=128, nlatitude =65)
 
   month::Int64 = 0
