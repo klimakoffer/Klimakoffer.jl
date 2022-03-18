@@ -11,5 +11,3 @@ model = Model(mesh, NT; co2_concentration = co2_concentration,compute_albedo=tru
 discretization = Discretization(mesh, model, NT)
 
 GlobTemp = compute_equilibrium!(discretization, update_heat_capacity = true ,update_solar_forcing = true)
-
-end
