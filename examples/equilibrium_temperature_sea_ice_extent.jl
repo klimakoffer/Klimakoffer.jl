@@ -1,6 +1,5 @@
 using Klimakoffer
 
-@time begin
 NT = 48 
 
 mesh = Mesh()
