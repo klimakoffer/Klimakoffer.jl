@@ -12,8 +12,8 @@ mutable struct Model
     geography::Array{Int8,2}                # Monthly land-sea-snow/sea ice distribution: depends on initial geography input if compute_sea_ice_extent is true
     solar_irradiance::Array{Float64,2}      # Solar irradiance: depends on the orbital parameters
     compute_sea_ice_extent::Bool            # Attribute for deciding whether sea ice extent should be calculated for the geography or read from given maps
-    sea_ice_regions::Int64                  # Attribute for computed sea ice regions (Northern Hemisphere,Southern Hemisphere,both)
-    area::Array{Float64,1}                  # Area of each cell on the surface of the sphere
+    sea_ice_regions::Int64                  # Attribute for computed sea ice regions (Northern Hemisphere = 0,Southern Hemisphere = 1,both = 2)
+    area::Array{Float64,1}                  # Area of each cell on the surface of the sphere in millions of km^2, assuming earth's total surface is 510.000.000 km^2
     year::Int64                             # Selectable model year for sea ice extent (1979 - 2021)
   end
 
