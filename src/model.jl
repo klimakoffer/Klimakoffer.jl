@@ -103,12 +103,17 @@ mutable struct Model
   
   
   # TODO: this routine works only for NT = 48
-
+  
+  """
+  set_geography!()
+  Computes the geography according to model parameter settings and time step
+  
+  * monthly geography can be updated by reading the input maps or by computing the sea ice extent
+  * first time step is the last week of March as the simulation starts at the vernal equinox
+  """
   function set_geography!(model, mesh, time_step)
   @unpack nx,ny = mesh
 
-  # monthly geography can be updated by reading the input maps or by computing the sea ice extent
-  # first time step is the last week of March as the simulation starts at the vernal equinox
    if model.compute_sea_ice_extent == false
       if time_step in (1,46,47,48)
         model.geography = read_geography(joinpath(@__DIR__, "..", "input","world", "monthly_maps", string("The_World_from_image", nx, "x", ny,"_1", ".dat")),nx,ny)
