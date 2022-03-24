@@ -653,11 +653,13 @@ end
 
 
 """
-calc_init_geography()
+reset_geography()
 
 Deletes all sea ice cells from the launch geography except for those at the North Pole.
+The sea ice cells at the North Pole are needed as a start distribution as the algorithm for the
+sea ice extent simulates sea ice growth next to existing sea ice or snow cells.
 """ 
-function calc_init_geography(geography) 
+function reset_geography(geography) 
 
   temp_geo = geography[:,2:65]
   G = findall(isequal(2), temp_geo)
@@ -774,6 +776,9 @@ function calculate_new_extent_N(geography,new_extent,area_frac, nlongitude=128, 
                     if G[J] in (5,6,7,8) && extent_remaining > 0
                         G[J[1], J[2]] = 2
                         extent_remaining -= area_frac[J[2]]
+                        if extent_remaining <= 0
+                          break
+                        end
                     end
                 end
             end
@@ -795,6 +800,9 @@ function calculate_new_extent_N(geography,new_extent,area_frac, nlongitude=128, 
                     if N[J] == 2 && extent_remaining < 0
                         N[J[1], J[2]] = 5
                         extent_remaining += reverse(area_frac[1:nlat])[J[2]]
+                        if extent_remaining >= 0
+                          break
+                        end  
                     end
                 end
 
@@ -843,6 +851,9 @@ function calculate_new_extent_S(geography,new_extent,area_frac, nlongitude=128, 
                     if N[J] in (5,6,7,8) && extent_remaining > 0
                         N[J[1], J[2]] = 2
                         extent_remaining -= reverse(area_frac[nlat_start:nlatitude])[J[2]]
+                        if extent_remaining <= 0
+                          break
+                        end  
                     end
                 end
             end
@@ -864,6 +875,9 @@ function calculate_new_extent_S(geography,new_extent,area_frac, nlongitude=128, 
                     if G[J] == 2 && extent_remaining < 0
                         G[J[1], J[2]] = 5
                         extent_remaining += area_frac[J[2]]
+                        if extent_remaining >= 0
+                          break
+                        end
                     end
                 end
 
@@ -900,7 +914,7 @@ function calc_geography_per_month_extent_N(geography,annual_sea_ice_extent_N,are
 
 
   if month == 0 || month == 1
-    geography_start = calc_init_geography(read_geography(joinpath(@__DIR__, "..", "input","world", "The_World128x65.dat"),128,65))
+    geography_start = reset_geography(read_geography(joinpath(@__DIR__, "..", "input","world", "The_World128x65.dat"),128,65))
     current_extent = nlongitude*area_frac[1]
     new_extent = annual_sea_ice_extent_N[1]-current_extent
     geography = calculate_new_extent_N(geography_start,new_extent,area_frac)
@@ -940,7 +954,7 @@ function calc_geography_per_month_extent_S(geography,annual_sea_ice_extent_S,are
 
 
   if (month == 0 && sea_ice_regions == 1) || (month == 1  && sea_ice_regions == 1)
-    geography_start = calc_init_geography(read_geography(joinpath(@__DIR__, "..", "input","world", "The_World128x65.dat"),128,65))
+    geography_start = reset_geography(read_geography(joinpath(@__DIR__, "..", "input","world", "The_World128x65.dat"),128,65))
     new_extent = annual_sea_ice_extent_S[1]
     geography = calculate_new_extent_S(geography_start,new_extent,area_frac)
     return geography
