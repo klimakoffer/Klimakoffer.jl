@@ -1,4 +1,3 @@
-
 #Mapping functions
 ##################
 # function index2d(k,nx)
@@ -15,7 +14,6 @@ end
 
 """
     compute_equilibrium!(...)
-
 * rel_error is the tolerance for global temperature equilibrium (default is 2e-5).
 * max_years is the maximum number of annual cycles to be computed when searching for equilibrium
 * update_heat_capacity : manage the monthly update function for the heat capacity
@@ -69,7 +67,6 @@ end
 
 """
     compute_evolution!(...)
-
 Compute the evolution of the mean temperature with varying CO2 levels.
 """
 function compute_evolution!(discretization, co2_concentration_at_step, year_start, year_end; verbose=true, update_heat_capacity = false,update_solar_forcing = false)
@@ -269,12 +266,10 @@ end
 
 """
  update_monthly_params!(...)
-
 * The routine updates monthly all important parameters of the model,
   which are necessary for the passed update settings.
   When updating the heat capacity, the LU decomposition must take place again. 
   Update start is the first week of April.
-
 """
 function update_monthly_params!(model, lu_decomposition, mesh, num_steps_year, time_step, update_heat_capacity, update_solar_forcing)
    
