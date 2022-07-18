@@ -1,6 +1,6 @@
 module Klimakoffer
 
-using LinearAlgebra: lu, ldiv!
+using LinearAlgebra: lu, lu!, ldiv!
 using SparseArrays: sparse, spzeros
 using UnPack: @unpack
 using Requires: @require
