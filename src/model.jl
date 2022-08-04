@@ -111,10 +111,10 @@ mutable struct Model
   
   
  """
-  update_model()
+  update_model!()
   Gives the possibility to interactively decide which parameters should be updated in a simulation
  """
- function update_model(model, mesh, time_step, update_geography=true, update_albedo=true, update_diffusion=true,update_heat_capacity=true, update_solar_forcing=true)
+ function update_model!(model, mesh, time_step, update_geography=true, update_albedo=true, update_diffusion=true,update_heat_capacity=true, update_solar_forcing=true)
   @unpack nx,ny = mesh
   
   if update_geography == true
@@ -152,7 +152,7 @@ mutable struct Model
 
    if model.compute_sea_ice_extent == false
       if time_step in (1,46,47,48)
-        model.geography = read_geography(joinpath(@__DIR__, "..", "input","world", "monthly_maps", string("The_World_from_image", nx, "x", ny,"_1", ".dat")),nx,ny)
+        model.geography = read_geography(joinpath(@__DIR__, "..", "input","world", "monthly_maps", string("The_World_from_image", nx, "x", ny,"_1", ".dat")),nx,ny) # TODO: do we need "=" here?
           
       elseif mod(time_step,4) == 2 && time_step in (2:45)
        month::Int64 = 1

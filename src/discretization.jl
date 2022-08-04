@@ -11,7 +11,8 @@ end
 
 
 function Discretization(mesh, model, num_steps_year; run_garbage_collector = true)
-    lu_decomposition = compute_lu_matrices(mesh, model, num_steps_year)
+    mat = compute_matrix(mesh,num_steps_year,model)
+    lu_decomposition = lu(mat)
 
     if run_garbage_collector
       GC.gc()
@@ -31,8 +32,7 @@ function Base.show(io::IO, discretization::Discretization)
   print(io, "Discretization() with ", nx, "×", ny, " degrees of freedom")
 end
 
-function compute_lu_matrices(mesh, model, num_steps_year)
+function compute_lu_matrices!(discretization, mesh, model, num_steps_year)
   mat = compute_matrix(mesh,num_steps_year,model)
-  lu_decomposition = lu(mat)
-  return lu_decomposition
+  lu!(discretization.lu_decomposition,mat)
 end
