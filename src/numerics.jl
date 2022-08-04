@@ -38,12 +38,14 @@ function compute_equilibrium!(discretization; max_years=100, rel_error=2e-5, ver
 
             old_time_step = (time_step == 1) ? num_steps_year : time_step - 1
             update_rhs!(rhs, mesh, num_steps_year, time_step, view(annual_temperature, :, old_time_step), model, last_rhs)
-                        
+            #last_rhs = t
+
             # Use in-place operation `ldiv!` instead of `\` to avoid allocations
             ldiv!(view(annual_temperature, :, time_step), discretization.lu_decomposition, rhs)
 
             annual_temperature[1:nx, time_step] .= annual_temperature[1, time_step]
             annual_temperature[dof-nx+1:dof, time_step] .= annual_temperature[dof, time_step]
+        
 
             average_temperature += area_weighted_average(view(annual_temperature, :, time_step), mesh)
         end
@@ -69,10 +71,13 @@ end
     compute_evolution!(...)
 Compute the evolution of the mean temperature with varying CO2 levels.
 """
-function compute_evolution!(discretization, co2_concentration_at_step, year_start, year_end; verbose=true, update_heat_capacity = false,update_solar_forcing = false)
+function compute_evolution!(discretization,co2_concentration_at_step,year_start, year_end; verbose=true, update_heat_capacity = false,update_solar_forcing = false) #an zweiter Stelle co2_concentration_at_step
     @unpack mesh, model, num_steps_year, annual_temperature, rhs, last_rhs  = discretization
     @unpack nx, dof = mesh
     
+    #if isa(co2_concentration_at_step,Number)&&co2_concentration_at_step>1000.0
+    #    co
+
     if verbose
       println("year","  ","Average Temperature")
     end
@@ -102,11 +107,11 @@ function compute_evolution!(discretization, co2_concentration_at_step, year_star
     for year in 1:max_years
         average_temperature = 0.0
         for time_step in 1:num_steps_year
-            set_co2_concentration!(model, co2_concentration_at_step[step])
+            set_co2_concentration!(mesh,model, co2_concentration_at_step[step])
             update_monthly_params!(model, discretization.lu_decomposition, mesh, num_steps_year, time_step, update_heat_capacity, update_solar_forcing)   
             old_time_step = (time_step == 1) ? num_steps_year : time_step - 1
             update_rhs!(rhs, mesh, num_steps_year, time_step, view(annual_temperature, :, old_time_step), model, last_rhs)
-                        
+            #last_rhs = t            
             # Use in-place operation `ldiv!` instead of `\` to avoid allocations
             ldiv!(view(annual_temperature, :, time_step), discretization.lu_decomposition, rhs)
 
@@ -247,11 +252,12 @@ end
 function update_rhs!(rhs, mesh, num_steps_year, time_step, temperature, model,  last_rhs)
     @unpack nx,ny = mesh
     @unpack heat_capacity, solar_forcing, radiative_cooling_co2 = model
+    (row,column,dim) = size(radiative_cooling_co2)
+    if row == 2
     for j=1:ny
         for i=1:nx
             row_idx = index1d(i,j,nx)
-
-            rhs[row_idx] = 4 * temperature[row_idx] * num_steps_year  - last_rhs[row_idx] + solar_forcing[i,j,time_step] / heat_capacity[i,j,2] - (radiative_cooling_co2[2] / heat_capacity[i,j,2] + radiative_cooling_co2[1] / heat_capacity[i,j,1])
+            rhs[row_idx] = 4 * temperature[row_idx] * num_steps_year  - last_rhs[row_idx] + solar_forcing[i,j,time_step] / heat_capacity[i,j,2] - (radiative_cooling_co2[2,1,1] / heat_capacity[i,j,2] + radiative_cooling_co2[1,1,1] / heat_capacity[i,j,1])
             if (time_step == 1)
                 rhs[row_idx] += solar_forcing[i,j,num_steps_year] / heat_capacity[i,j,1]
             else
@@ -259,7 +265,32 @@ function update_rhs!(rhs, mesh, num_steps_year, time_step, temperature, model,  
             end
         end
     end
+    
     last_rhs .= rhs
+else
+    matrix_temperature = reshape(temperature,nx,ny)
+    last_rhs_matrix = reshape(last_rhs,nx,ny)
+    rhs_matrix = reshape(rhs,nx,ny)
+    
+        for i in 1:nx
+            for j in 1:ny
+                rhs_matrix[i,j] = 4 * matrix_temperature[i,j] * num_steps_year - last_rhs_matrix[i,j] + solar_forcing[i,j,time_step] / heat_capacity[i,j,2] - (radiative_cooling_co2[i,j,2] / heat_capacity[i,j,2] + radiative_cooling_co2[i,j,1] / heat_capacity[i,j,1])
+                if (time_step==1)
+                    rhs_matrix[i,j] += solar_forcing[i,j,num_steps_year] / heat_capacity[i,j,1]
+                else
+                    rhs_matrix[i,j] += solar_forcing[i,j,time_step-1] / heat_capacity[i,j,1]
+                end
+            end
+        end
+    
+            #global  t = reshape(rhs_matrix,nx*ny,1)
+            last_rhs .= rhs .= reshape(rhs_matrix,nx*ny,1)
+       
+    end
+
+    return rhs,last_rhs#, t
+        
+
 end
 
 
