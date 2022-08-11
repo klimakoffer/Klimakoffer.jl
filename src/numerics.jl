@@ -101,11 +101,12 @@ function compute_evolution!(discretization,co2_concentration_at_step,year_start,
     # Initialize the temperature array
     mean_temperature_at_step[1] = area_weighted_average(view(annual_temperature, :, num_steps_year), mesh)
     step = 1
+    global months = 1
 
     for year in 1:max_years
         average_temperature = 0.0
         for time_step in 1:num_steps_year
-            set_co2_concentration!(mesh,model, co2_concentration_at_step[step])
+            set_co2_concentration!(mesh,model, co2_concentration_at_step,time_step,months)
             update_monthly_params!(model, discretization, mesh, num_steps_year, time_step, update_heat_capacity, update_solar_forcing)   
             old_time_step = (time_step == 1) ? num_steps_year : time_step - 1
             update_rhs!(rhs, mesh, num_steps_year, time_step, view(annual_temperature, :, old_time_step), model, last_rhs)

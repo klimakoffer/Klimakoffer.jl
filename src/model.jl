@@ -90,23 +90,58 @@ mutable struct Model
     return Model(diffusion_coeff, heat_capacity, albedo, solar_forcing, radiative_cooling_co2, radiative_cooling_feedback,co_albedo,compute_albedo,geography,solar_irradiance, compute_sea_ice_extent, sea_ice_regions, area, year)
   end
   
-  function set_co2_concentration!(mesh,model,co2_concentration)
+  function set_co2_concentration!(mesh,model,co2_concentration,time,value)
     @unpack nx,ny= mesh
-    
-    num = isa(co2_concentration,Number)
-    
 
-    if num
-      model.radiative_cooling_co2[1,1,1] = model.radiative_cooling_co2[2,1,1]
-      model.radiative_cooling_co2[2,1,1] = calc_radiative_cooling_co2(co2_concentration)
+    num = isa(co2_concentration[1],Number)
+   
+
+    if num 
+       if mod(time,4) == 2
+          global months += 1
+          model.radiative_cooling_co2[1,1,1] = model.radiative_cooling_co2[2,1,1]
+          model.radiative_cooling_co2[2,1,1] = calc_radiative_cooling_co2(co2_concentration[months])
+       else
+        model.radiative_cooling_co2[1,1,1] = model.radiative_cooling_co2[2,1,1]
+        model.radiative_cooling_co2[2,1,1] = calc_radiative_cooling_co2(co2_concentration[months])
+       end
     else
+      if mod(time,4) == 2
+        global months += 1
         for i in 1:nx
           for j in 1:ny
            model.radiative_cooling_co2[i,j,1] = model.radiative_cooling_co2[i,j,2]
-           model.radiative_cooling_co2[i,j,2] = calc_radiative_cooling_co2(co2_concentration[i,j])
+           model.radiative_cooling_co2[i,j,2] = calc_radiative_cooling_co2(co2_concentration[months][i,j])
           end
         end
+      else
+        for i in 1:nx
+          for j in 1:ny
+           model.radiative_cooling_co2[i,j,1] = model.radiative_cooling_co2[i,j,2]
+           model.radiative_cooling_co2[i,j,2] = calc_radiative_cooling_co2(co2_concentration[months][i,j])
+          end
+        end
+      end
     end
+
+
+
+
+
+    
+    
+
+#    if num
+#      model.radiative_cooling_co2[1,1,1] = model.radiative_cooling_co2[2,1,1]
+#      model.radiative_cooling_co2[2,1,1] = calc_radiative_cooling_co2(co2_concentration)
+#    else
+#        for i in 1:nx
+#          for j in 1:ny
+#           model.radiative_cooling_co2[i,j,1] = model.radiative_cooling_co2[i,j,2]
+#           model.radiative_cooling_co2[i,j,2] = calc_radiative_cooling_co2(co2_concentration[i,j])
+#          end
+#        end
+#    end
   end
   
   

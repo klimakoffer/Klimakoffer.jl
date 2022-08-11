@@ -284,13 +284,13 @@ end
 
 #etol=(10^(-5))
 
-function bisection(array1, array2, vector1_in, vector2_in, vector3_in, counter; etol=10^(-5)) #array1 bilinear, array2 big matrix with changed values
+function bisection(array1, array2, vector1_in, vector2_in, vector3_in, counter; etol=(0.5*10^(-5))) #array1 bilinear, array2 big matrix with changed values
 
     global final_co2_mat = []
 
     for t in 1:counter
         lower = 200
-        upper = 500
+        upper = 650
 
         z = sum(array1[t], dims=1)
         z[1] = z[1] ./ 128
@@ -298,16 +298,17 @@ function bisection(array1, array2, vector1_in, vector2_in, vector3_in, counter; 
 
         calc_average_CO2 = dot(z, vector1_in)
         y = calc_average_CO2
-
+        println(y)
         global l = 1
         middle_value = vector2_in[t]
+        println(middle_value)
         while abs(y - middle_value) > etol
 
             if y - vector2_in[t] > 0
                 section1 = round((upper + lower) / (2 * 10^6), digits=8)
                 array3 = replace(array2[t], vector2_in[t] => section1, vector3_in[t] => section1)
-                bilinear_one_matrix(array3, nlongitude)
-                row_sum = sum(array_out, dims=1)
+                z=bilinear_one_matrix(array3, nlongitude)
+                row_sum = sum(z, dims=1)
                 row_sum[1] = row_sum[1] ./ 128
                 row_sum[65] = row_sum[65] ./ 128
                 y = dot(row_sum, vector1_in)
@@ -315,8 +316,8 @@ function bisection(array1, array2, vector1_in, vector2_in, vector3_in, counter; 
             else
                 section1 = round((upper + lower) / (2 * 10^(6)), digits=8)
                 array3 = replace(array2[t], vector2_in[t] => section1, vector3_in[t] => section1)
-                bilinear_one_matrix(array3, nlongitude)
-                row_sum = sum(array_out, dims=1)
+                z=bilinear_one_matrix(array3, nlongitude)
+                row_sum = sum(z, dims=1)
                 row_sum[1] = row_sum[1] ./ 128
                 row_sum[65] = row_sum[65] ./ 128
                 y = dot(row_sum, vector1_in)
@@ -325,9 +326,9 @@ function bisection(array1, array2, vector1_in, vector2_in, vector3_in, counter; 
             l += 1
         end
         if l == 1
-            array_out = array1[t]
+            z = array1[t]
         end
-        array_out_1 = 10^6 .* array_out
+        array_out_1 = 10^6 .* z
         push!(final_co2_mat, array_out_1)
         println(l)
     end
@@ -353,7 +354,7 @@ function extend_co2_matrices(mesh, array_in, year_start, year_end, counter)
     j = findfirst(CO2_Array[:, 1] .== 2017)
     k = findfirst(CO2_Array[:, 1] .== year_end + 1)
 
-    for i in (j+2):k+1
+    for i in (j+2):k+2
         y = fill(CO2_Array[i, 4], nx, ny)
         push!(more_years_co2_mat, y)
     end
@@ -370,19 +371,19 @@ function calc_ols(mesh, array_in, year_st, year_en, num_steps_years; linear=true
     default = 2003
     global beta = zeros(Float64, 2)
     years = year_en - year_st #+1
-    month_steps = range(year_st, year_en, years * num_steps_years + 1)
+    month_steps = range(year_st, year_en, years * 12 + 1)  # 12 because we have 12 months in a year
     local co2_vector = []
     global OLS_coefficients = []
     if linear
         n = 1
         if row < 200
-            x_matrix = ones(Float64, years * num_steps_years + 1, 2)
-            for i in 1:years*num_steps_years+1
+            x_matrix = ones(Float64, years * 12 + 1, 2)
+            for i in 1:years*12+1
                 x_matrix[i, 2] = month_steps[i]
             end
             invers = transpose(x_matrix) * x_matrix
             while n <= nx * ny
-                for k in ((year_st-default)*12)+1:num_steps_years*years+1
+                for k in ((year_st-default)*12)+1:12*years+1
                     vector = reshape(array_in[k], nx * ny)
                     push!(co2_vector, vector[n])
                 end
@@ -395,32 +396,32 @@ function calc_ols(mesh, array_in, year_st, year_en, num_steps_years; linear=true
             end
         else
             if year_en == 2021
-                x_matrix = ones(Float64, years * num_steps_years + 1, 2)
-                for i in 1:years*num_steps_years+1
+                x_matrix = ones(Float64, years * 12 + 1, 2)
+                for i in 1:years*12+1
                     x_matrix[i, 2] = month_steps[i]
                 end
                 invers = transpose(x_matrix) * x_matrix
-                beta = invers \ (transpose(x_matrix) * array_in[1:(years*num_steps_years+1)])
+                beta = invers \ (transpose(x_matrix) * array_in[1:(years*12+1)])
             else
-                x_matrix = ones(Float64, years * num_steps_years, 2)
-                for i in 1:years*num_steps_years
+                x_matrix = ones(Float64, years * 12, 2)
+                for i in 1:years*12
                     x_matrix[i, 2] = month_steps[i]
                 end
                 invers = transpose(x_matrix) * x_matrix
-                beta = invers \ (transpose(x_matrix) * array_in[1:years*num_steps_years])
+                beta = invers \ (transpose(x_matrix) * array_in[1:years*12])
             end
         end
         #return beta, OLS_coefficients
     else
         n = 1
         if row < 200
-            x_matrix = (ones(Float64, years * num_steps_years + 1, 2))
-            for i in 1:years*num_steps_years+1
+            x_matrix = ones(Float64, years * 12 + 1, 2)
+            for i in 1:years*12+1
                 x_matrix[i, 2] = month_steps[i]
             end
             invers = transpose(x_matrix) * x_matrix
             while n <= nx * ny
-                for k in ((year_st-default)*12)+1:num_steps_years*years+1
+                for k in ((year_st-default)*12)+1:12*years+1
                     vector = reshape(array_in[k], nx * ny)
                     push!(co2_vector, vector[n])
                 end
@@ -433,19 +434,19 @@ function calc_ols(mesh, array_in, year_st, year_en, num_steps_years; linear=true
             end
         else
             if year_en == 2021
-                x_matrix = (ones(Float64, years * num_steps_years - 1, 2))
-                for i in 1:years*num_steps_years-1
+                x_matrix = (ones(Float64, years * 12 - 1, 2))
+                for i in 1:years*12-1
                     x_matrix[i, 2] = month_steps[i]
                 end
                 invers = transpose(x_matrix) * x_matrix
-                beta = invers \ (transpose(x_matrix) * log.(array_in[11:(years*num_steps_years-1)+10]))
+                beta = invers \ (transpose(x_matrix) * log.(array_in[11:(years*12-1)+10]))
             else
-                x_matrix = (ones(Float64, years * num_steps_years, 2))
-                for i in 1:years*num_steps_years
+                x_matrix = (ones(Float64, years * 12, 2))
+                for i in 1:years*12
                     x_matrix[i, 2] = month_steps[i]
                 end
                 invers = transpose(x_matrix) * x_matrix
-                beta = invers \ (transpose(x_matrix) * log.(array_in[11:years*num_steps_years+10]))
+                beta = invers \ (transpose(x_matrix) * log.(array_in[11:years*12+10]))
             end
         end
         return beta, OLS_coefficients
@@ -455,32 +456,40 @@ end
 
 function calc_co2_matrices(array_in, future_year_str, future_year_en, num_steps_year; linear=true)
     years = future_year_en - future_year_str
-    x = range(future_year_str, future_year_en, num_steps_year * years + 1)
+    #num_steps_months = num_steps_year/4
+    #x = range(future_year_str + 0.25, future_year_en + 0.25, 12 * years + 1)
 
     global val = []
     (row,) = size(array_in)
     g = zeros(Float64, (128, 65))
     if linear
         if row == 2 && future_year_str == 2022
-            f = zeros(Float64, num_steps_year * years + 2)
+            x = range(future_year_str,future_year_en,12*years+1)
+            f = zeros(Float64, 12 * years + 4)
             f[1] = array_in[1] + array_in[2] * (2021 + 11 / 12)
             push!(val, f[1])
-            for i in 2:num_steps_year*years+2
+            for i in 2:12*years+2
                 f[i] = array_in[1] + array_in[2] * x[i-1]
                 push!(val, f[i])
             end
+            f[12*years+3] = array_in[1] + array_in[2] * (future_year_en + 1/12)
+            f[12*years+4] = array_in[1] + array_in[2] * (future_year_en + 2/12)
+            push!(val,f[12*years+3])
+            push!(val,f[12*years+4])
+ 
 
-        elseif row == 2 && future_year_str !== 2022
-            f = zeros(Float64, num_steps_year * years + 1)
-            for i in 1:num_steps_year*years+1
-                f[i] = array_in[1] + array_in[2] * x[i]
-                push!(val, f[i])
-            end
+        #elseif row == 2 && future_year_str !== 2022
+        #    f = zeros(Float64, num_steps_year * years + 1)
+        #    for i in 1:num_steps_year*years+1
+        #        f[i] = array_in[1] + array_in[2] * x[i]
+        #        push!(val, f[i])
+        #    end
 
 
         else
+            x = range(future_year_str + 2/12, future_year_en + 2/12, 12 * years + 1)
             f = zeros(Float64, row)
-            for i in 1:num_steps_year*years+1
+            for i in 1:12*years+1
                 for j in 1:row
                     f[j] = array_in[j][1] + array_in[j][2] * x[i]
                 end
@@ -490,23 +499,29 @@ function calc_co2_matrices(array_in, future_year_str, future_year_en, num_steps_
         end
     else
         if row == 2 && future_year_str == 2022
-            f = zeros(Float64, num_steps_year * years + 2)
+            x = range(future_year_str,future_year_en,12*years+1)
+            f = zeros(Float64, 12 * years + 4)
             f[1] = exp(array_in[1] + array_in[2] * (2021 + 11 / 12))
             push!(val, f[1])
-            for i in 2:num_steps_year*years+2
+            for i in 2:12*years+2
                 f[i] = exp(array_in[1] + array_in[2] * x[i-1])
                 push!(val, f[i])
             end
+            f[12*years+3] = exp(array_in[1] + array_in[2] * (future_year_en + 1/12))
+            f[12*years+4] = exp(array_in[1] + array_in[2] * (future_year_en + 2/12))
+            push!(val,f[12*years+3])
+            push!(val,f[12*years+4])
 
-        elseif row == 2 && future_year_str !== 2022
-            f = zeros(Float64, num_steps_year * years + 1)
-            for i in 1:num_steps_year*years+1
-                f[i] = exp(array_in[1] + array_in[2] * x[i])
-                push!(val, f[i])
-            end
+     #   elseif row == 2 && future_year_str !== 2022
+     #       f = zeros(Float64, num_steps_year * years + 1)
+     #       for i in 1:num_steps_year*years+1
+     #           f[i] = exp(array_in[1] + array_in[2] * x[i])
+     #           push!(val, f[i])
+     #       end
         else
+            x = range(future_year_str + 2/12, future_year_en + 2/12, 12 * years + 1)
             f = zeros(Float64, row)
-            for i in 1:num_steps_year*years+1
+            for i in 1:12*years+1
                 for j in 1:row
                     f[j] = exp(array_in[j][1] + array_in[j][2] * x[i])
                 end
@@ -540,3 +555,18 @@ function combine_matrices(array1_in, array2_in, counter)
     end
 end
 
+function calc_mean_co2(array_in,vector_in)
+    (row,) = size(array_in)
+    (nx,ny) = size(array_in[1])
+    mean_co2 = []
+    for i in 1:row
+        sum_over_col = sum(array_in[i],dims=1)
+        #update the first and last value of the sum because the poles are only a point
+        sum_over_col[1] = sum_over_col[1]./nx
+        sum_over_col[65] = sum_over_col[65]./nx
+        #calc the mean co2
+        mean_val_co2 = dot(sum_over_col,vector_in)
+        push!(mean_co2,mean_val_co2)
+    end
+    return mean_co2
+end
