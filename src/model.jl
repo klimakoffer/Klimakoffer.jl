@@ -1,32 +1,54 @@
 using DelimitedFiles
+using Statistics
 
 mutable struct Model
-    diffusion_coeff::Array{Float64,2}       # Diffusion coefficient: depends on the sine of latitude
-    heat_capacity::Array{Float64,3}         # Heat capacity: depends on the geography (land, ocean, ice, etc.). Position [:,:,1]: Previous time step, position [:,:,2]: current time step.
-    albedo::Array{Float64,2}                # Albedo coefficient: depends on the geography (land, ocean, ice, etc.)
-    solar_forcing::Array{Float64,3}         # Time-dependent incoming solar radiation: depends on the orbital parameters and the albedo
-    radiative_cooling_co2::Array{Float64,1} # Outgoing long-wave radiation: depends on the CO2 concentration. Position 1: Previous time step, position 2: current time step.
-    radiative_cooling_feedback::Float64     # Outgoing long-wave radiation (feedback effects): models the water vapor cyces, lapse rate and cloud cover           
-    co_albedo::Array{Float64,2}             # Absorbed radiatian coefficient: depends on the albedo
-    compute_albedo::Bool                    # Attribute for deciding whether the albedo should be calculated instead of being read from a file
-    geography::Array{Int8,2}                # Monthly land-sea-snow/sea ice distribution: depends on initial geography input if compute_sea_ice_extent is true
-    solar_irradiance::Array{Float64,2}      # Solar irradiance: depends on the orbital parameters
-    compute_sea_ice_extent::Bool            # Attribute for deciding whether sea ice extent should be calculated for the geography or read from given maps
-    sea_ice_regions::Int64                  # Attribute for computed sea ice regions (Northern Hemisphere = 0,Southern Hemisphere = 1,both = 2)
-    area::Array{Float64,1}                  # Area of each cell on the surface of the sphere in millions of km^2, assuming earth's total surface is 510.000.000 km^2
-    year::Int64                             # Selectable model year for sea ice extent (1979 - 2021)
+    diffusion_coeff::Array{Float64,2}               # Diffusion coefficient: depends on the sine of latitude
+    heat_capacity::Array{Float64,3}                 # Heat capacity: depends on the geography (land, ocean, ice, etc.). Position [:,:,1]: Previous time step, position [:,:,2]: current time step.
+    albedo::Array{Float64,2}                        # Albedo coefficient: depends on the geography (land, ocean, ice, etc.)
+    solar_forcing::Array{Float64,3}                 # Time-dependent incoming solar radiation: depends on the orbital parameters and the albedo
+    radiative_cooling_co2::Array{Float64,3}         # Outgoing long-wave radiation: depends on the CO2 concentration. Position 1: Previous time step, position 2: current time step.      
+    radiative_cooling_feedback::Float64             # Outgoing long-wave radiation (feedback effects): models the water vapor cyces, lapse rate and cloud cover           
+    co_albedo::Array{Float64,2}                     # Absorbed radiatian coefficient: depends on the albedo
+    compute_albedo::Bool                            # Attribute for deciding whether the albedo should be calculated instead of being read from a file
+    geography::Array{Int8,2}                        # Monthly land-sea-snow/sea ice distribution: depends on initial geography input if compute_sea_ice_extent is true
+    solar_irradiance::Array{Float64,2}              # Solar irradiance: depends on the orbital parameters
+    compute_sea_ice_extent::Bool                    # Attribute for deciding whether sea ice extent should be calculated for the geography or read from given maps
+    sea_ice_regions::Int64                          # Attribute for computed sea ice regions (Northern Hemisphere = 0,Southern Hemisphere = 1,both = 2)
+    area::Array{Float64,1}                          # Area of each cell on the surface of the sphere in millions of km^2, assuming earth's total surface is 510.000.000 km^2
+    year::Int64                                     # Selectable model year for sea ice extent (1979 - 2021)
   end
 
-  function Model(mesh, num_steps_year; co2_concentration = 315.0, compute_albedo = false, compute_sea_ice_extent = false, sea_ice_regions = 2 , sea_ice_extent_year = 1979) # co2_concentration in [ppm], default value from year 1950
+  function Model(mesh, num_steps_year, co2_concentration; compute_albedo = false, compute_sea_ice_extent = false, sea_ice_regions = 2 , sea_ice_extent_year = 1979) # co2_concentration in [ppm], default value from year 1950
     @unpack nx,ny = mesh
-    
-    # Constants
-    radiative_cooling_feedback = 2.15   #[W/m^2/°C]: sensitivity of the seasonal cycle and annual change in the forcing agents
-    
-    radiative_cooling_co2 = zeros(Float64,2)
-    radiative_cooling_co2[1] = calc_radiative_cooling_co2(co2_concentration) # Initialize both entries of radiative_cooling_co2 to the same value
-    radiative_cooling_co2[2] = radiative_cooling_co2[1]
+    num = isa(co2_concentration,Number)
+    mat = isa(co2_concentration,Matrix)
 
+    # Constants
+    radiative_cooling_feedback = 2.15  #[W/m^2/°C]: sensitivity of the seasonal cycle and annual change in the forcing agents
+    if num
+       radiative_cooling_co2 = zeros(Float64,(2,1,1))
+       radiative_cooling_co2[1,1,1] = calc_radiative_cooling_co2(co2_concentration) # Initialize both entries of radiative_cooling_co2 to the same value
+       radiative_cooling_co2[2,1,1] = radiative_cooling_co2[1,1,1]
+    else
+      if mat
+       radiative_cooling_co2 = zeros(Float64,(nx,ny,2))
+        for i in 1:nx
+           for j in 1:ny
+             radiative_cooling_co2[i,j,1]= calc_radiative_cooling_co2(co2_concentration[i,j])
+             radiative_cooling_co2[i,j,2] = radiative_cooling_co2[i,j,1] 
+           end
+        end
+      else
+        radiative_cooling_co2 = zeros(Float64,(2,1,1))
+        radiative_cooling_co2[1,1,1] = calc_radiative_cooling_co2(co2_concentration[1])
+        radiative_cooling_co2[2,1,1] = radiative_cooling_co2[1,1,1]
+      end
+        
+    end
+    
+    #println(size(radiative_cooling_co2))
+    #return radiative_cooling_co2
+    
     # Read parameters
 
     geography = read_geography(joinpath(@__DIR__, "..", "input", "world", string("The_World", string(nx, "x", ny),".dat")),nx,ny)
@@ -68,9 +90,58 @@ mutable struct Model
     return Model(diffusion_coeff, heat_capacity, albedo, solar_forcing, radiative_cooling_co2, radiative_cooling_feedback,co_albedo,compute_albedo,geography,solar_irradiance, compute_sea_ice_extent, sea_ice_regions, area, year)
   end
   
-  function set_co2_concentration!(model, co2_concentration)
-    model.radiative_cooling_co2[1] = model.radiative_cooling_co2[2]
-    model.radiative_cooling_co2[2] = calc_radiative_cooling_co2(co2_concentration)
+  function set_co2_concentration!(mesh,model,co2_concentration,time,value)
+    @unpack nx,ny= mesh
+
+    num = isa(co2_concentration[1],Number)
+   
+
+    if num 
+       if mod(time,4) == 2
+          global months += 1
+          model.radiative_cooling_co2[1,1,1] = model.radiative_cooling_co2[2,1,1]
+          model.radiative_cooling_co2[2,1,1] = calc_radiative_cooling_co2(co2_concentration[months])
+       else
+        model.radiative_cooling_co2[1,1,1] = model.radiative_cooling_co2[2,1,1]
+        model.radiative_cooling_co2[2,1,1] = calc_radiative_cooling_co2(co2_concentration[months])
+       end
+    else
+      if mod(time,4) == 2
+        global months += 1
+        for i in 1:nx
+          for j in 1:ny
+           model.radiative_cooling_co2[i,j,1] = model.radiative_cooling_co2[i,j,2]
+           model.radiative_cooling_co2[i,j,2] = calc_radiative_cooling_co2(co2_concentration[months][i,j])
+          end
+        end
+      else
+        for i in 1:nx
+          for j in 1:ny
+           model.radiative_cooling_co2[i,j,1] = model.radiative_cooling_co2[i,j,2]
+           model.radiative_cooling_co2[i,j,2] = calc_radiative_cooling_co2(co2_concentration[months][i,j])
+          end
+        end
+      end
+    end
+
+
+
+
+
+    
+    
+
+#    if num
+#      model.radiative_cooling_co2[1,1,1] = model.radiative_cooling_co2[2,1,1]
+#      model.radiative_cooling_co2[2,1,1] = calc_radiative_cooling_co2(co2_concentration)
+#    else
+#        for i in 1:nx
+#          for j in 1:ny
+#           model.radiative_cooling_co2[i,j,1] = model.radiative_cooling_co2[i,j,2]
+#           model.radiative_cooling_co2[i,j,2] = calc_radiative_cooling_co2(co2_concentration[i,j])
+#          end
+#        end
+#    end
   end
   
   
@@ -191,18 +262,19 @@ mutable struct Model
   
   * Default CO2 concentration is 315 ppm (equivalent to year 1950)
   """
-  function calc_radiative_cooling_co2(co2_concentration=315.0)
-  
+  function calc_radiative_cooling_co2(co2_concentration)
+
   # Define base values for co2_concentration and radiative_cooling_co2
   co2_concentration_base = 315.0
   radiative_cooling_co2_base = 210.3
-  
-  # Doesn't change as long as CP2ppm doesn't change
-  radiative_cooling_co2=radiative_cooling_co2_base-5.35*log(co2_concentration/co2_concentration_base)
+ 
+  # Doesn't change as long as CO2ppm doesn't change
+  radiative_cooling_co2 = radiative_cooling_co2_base-5.35*log(co2_concentration/co2_concentration_base)
   
   return radiative_cooling_co2
   end
   
+
   """
   _calc_insolation()
   auxiliar function of calc_solar_forcing
