@@ -1,6 +1,7 @@
 using DelimitedFiles
 using DataFrames
 using Statistics
+using CSV
 
 const CSV_DATA = joinpath(@__DIR__, "..", "input", "preprocessed") #change preprocessed to 8_Tage, if you want to use a 
 const filepaths = readdir(CSV_DATA, join=true)
@@ -36,9 +37,29 @@ function count_files()
         if isfile(file)
             counter += 1
         end
-    end
+   end
     return counter
 end
+
+function max_element_array()
+max_val = zeros(counter,2)
+count = 0
+global max_row_column = 0
+for file in filepaths
+    if isfile(file)
+        count +=1
+    end
+    read = CSV.read(file,DataFrame)
+    (rows,columns) = size(read)
+    max_val[count,1] = rows
+    max_val[count,2] = columns
+end
+row_column, pos = findmax(max_val, dims = 1)
+max_row_column = Int.(row_column)
+
+return max_row_column
+end
+
 
 "
     The dataset given by NASA uses 2 degree steps for the latitude and 2.5 degree steps for the longitude, so the 
@@ -51,7 +72,7 @@ end
 "
 
 num = 0
-function build_CO2_matrix_with_replaced_values(num, vector1_in, vector2_in)
+function build_CO2_matrix_with_replaced_values(num, vector1_in, vector2_in, vector3_in)
     global final_CO2 = []
     global nasa_co2_mat = []
     global index = []
@@ -61,7 +82,7 @@ function build_CO2_matrix_with_replaced_values(num, vector1_in, vector2_in)
     for path in filepaths
         global num += 1
         open(path) do io
-            co2_mat = zeros(91, 144) #choose a matrix, which is big enough - 
+            co2_mat = zeros(vector3_in[1,1], vector3_in[1,2]) #choose a matrix, which is big enough - 
             split_path = splitpath(path)
             filename = split(split_path[length(split_path)], "_")
             year = parse(Int, filename[1])
@@ -89,7 +110,7 @@ function build_CO2_matrix_with_replaced_values(num, vector1_in, vector2_in)
 
             data = readdlm(io) #1.Schritt -> 2002.09.01.csv
 
-            for i in 1:91
+            for i in 1:vector3_in[1,1]
                 vector_line = split(data[i], ",")
                 df = DataFrame(y=vector_line)
                 df.x = parse.(Float64, df.y)
@@ -101,8 +122,8 @@ function build_CO2_matrix_with_replaced_values(num, vector1_in, vector2_in)
 
             push!(nasa_co2_mat, 100000 * co2_mat)
 
-            for n in 1:91
-                for k in 1:144
+            for n in 1:vector3_in[1,1]
+                for k in 1:vector3_in[1,2]
                     if n < 60
                         if (co2_mat[n, k] == -9999.0 || co2_mat[n, k] == 0.0)
                             co2_mat[n, k] = month_average
@@ -127,26 +148,28 @@ end
 
 count_files()
 
-function calc_only_annual_year(array_in, index)
+function calc_only_annual_year(array_in, vector_in)
     global mean_year_co2_mat = []
     global sum_all = []
     for a in 0:13
-        y = findfirst(x -> x == (2003 + a), index)
+        y = findfirst(x -> x == (2003 + a), vector_in)
         vec = Vector(0:11)
         mean_sum = (1 / 12) * (array_in[y+vec[1]] .+ array_in[y+vec[2]] .+ array_in[y+vec[3]] .+ array_in[y+vec[4]] .+ array_in[y+vec[5]] .+
                                array_in[y+vec[6]] .+ array_in[y+vec[7]] .+ array_in[y+vec[8]] .+ array_in[y+vec[9]] .+ array_in[y+vec[10]] .+ array_in[y+vec[11]] .+
                                array_in[y+vec[12]])
         push!(sum_all, mean_sum)
     end
-    vec1 = Vector(0:11)
-    mean_sum_all_years = (1 / 14) * (sum_all[vec1[2]] .+ sum_all[vec1[3]] .+ sum_all[vec1[4]] .+ sum_all[vec1[5]] .+ sum_all[vec1[6]] .+ sum_all[vec1[7]] .+ sum_all[vec1[8]] .+ sum_all[vec1[9]] .+ sum_all[vec1[10]])
+    vec1 = Vector(1:14)
+    mean_sum_all_years = (1 / 14) * (sum_all[vec1[1]] .+ sum_all[vec1[2]] .+ sum_all[vec1[3]] .+ sum_all[vec1[4]] .+ sum_all[vec1[5]] .+ sum_all[vec1[6]] .+ 
+                        sum_all[vec1[7]] .+ sum_all[vec1[8]] .+ sum_all[vec1[9]] .+ sum_all[vec1[10]] .+ sum_all[vec1[11]] .+ sum_all[vec1[12]] .+ sum_all[vec1[13]] .+
+                        sum_all[vec1[14]])
     push!(mean_year_co2_mat, mean_sum_all_years)
     return mean_year_co2_mat, sum_all
 end
 
 nlongitude = 128
 
-function CO2_bilinear_interpolation(array_in, nlongitude, counter)
+function co2_bilinear_interpolation(array_in, nlongitude, counter)
     global bilinear_co2_mat = []
     for n in 1:counter
         (width_in, height_in) = size(array_in[1])
@@ -284,51 +307,84 @@ end
 
 #etol=(10^(-5))
 
-function bisection(array1, array2, vector1_in, vector2_in, vector3_in, counter; etol=(0.5*10^(-5))) #array1 bilinear, array2 big matrix with changed values
+function bisection(array1, array2, vector1_in, vector2_in, vector3_in, counter; etol=(10^(-6))) #array1 bilinear, array2 big matrix with changed values
 
     global final_co2_mat = []
 
     for t in 1:counter
-        lower = 200
-        upper = 650
+        lower = 0.0002
+        upper = 0.000650
+        global l = 1
+        #Define function(lower) for the if block
+        array4 = replace(array2[t], vector2_in[t] => lower, vector3_in[t] => lower)
+        sm_ar_4 = bilinear_one_matrix(array4, nlongitude)
+        sm_ar_4_sum = sum(sm_ar_4, dims=1)
+        sm_ar_4_sum[1] = sm_ar_4_sum[1] ./ 128
+        sm_ar_4_sum[65] = sm_ar_4_sum[65] ./ 128
+        func1 = dot(sm_ar_4_sum, vector1_in)
 
+        #Define function(upper) to check if function(lower)*function(upper) <0
+        array6 = replace(array2[t], vector2_in[t] => upper, vector3_in[t] => upper)
+        sm_ar_6 = bilinear_one_matrix(array6, nlongitude)
+        sm_ar_6_sum = sum(sm_ar_6, dims=1)
+        sm_ar_6_sum[1] = sm_ar_6_sum[1] ./ 128
+        sm_ar_6_sum[65] = sm_ar_6_sum[65] ./ 128
+        func3 = dot(sm_ar_6_sum, vector1_in)
+
+
+        #Calculate the first middle value
+        section1 = (upper + lower) / 2 
+
+        #Build the co2 matrix with values from section1 from above
+        array5 = replace(array2[t], vector2_in[t] => section1, vector3_in[t] => section1)
+        sm_ar_5 = bilinear_one_matrix(array5, nlongitude)
+        sm_ar_5_sum = sum(sm_ar_5, dims=1)
+        sm_ar_5_sum[1] = sm_ar_5_sum[1] ./ 128
+        sm_ar_5_sum[65] = sm_ar_5_sum[65] ./ 128
+        func2 = dot(sm_ar_5_sum, vector1_in)
+
+        #Check whether already existing co2 matrix is in etol. Therefore calculate the global mean
         z = sum(array1[t], dims=1)
         z[1] = z[1] ./ 128
         z[65] = z[65] ./ 128
-
         calc_average_CO2 = dot(z, vector1_in)
         y = calc_average_CO2
         println(y)
-        global l = 1
+
+        #Filter the mean co2 value for the specific year and month
         middle_value = vector2_in[t]
         println(middle_value)
-        while abs(y - middle_value) > etol
 
-            if y - vector2_in[t] > 0
-                section1 = round((upper + lower) / (2 * 10^6), digits=8)
-                array3 = replace(array2[t], vector2_in[t] => section1, vector3_in[t] => section1)
-                z=bilinear_one_matrix(array3, nlongitude)
-                row_sum = sum(z, dims=1)
-                row_sum[1] = row_sum[1] ./ 128
-                row_sum[65] = row_sum[65] ./ 128
-                y = dot(row_sum, vector1_in)
-                upper = section1 * 10^6
-            else
-                section1 = round((upper + lower) / (2 * 10^(6)), digits=8)
-                array3 = replace(array2[t], vector2_in[t] => section1, vector3_in[t] => section1)
-                z=bilinear_one_matrix(array3, nlongitude)
-                row_sum = sum(z, dims=1)
-                row_sum[1] = row_sum[1] ./ 128
-                row_sum[65] = row_sum[65] ./ 128
-                y = dot(row_sum, vector1_in)
-                lower = section1 * 10^6
+        if (func1 - middle_value)*(func3 - middle_value) > 0
+            println("Choose different borders for co2 concentration!")
+        end
+        func2 = func3
+        if abs(y - middle_value) < etol
+            println("We use the already calculated co2 matrix!")
+        else
+            println("We are going to calculate the needed co2 matrix!")
+            func_section1 = 1
+            while abs(func_section1 - middle_value) > etol
+                section1 = (upper+lower)/2
+                array5 = replace(array2[t], vector2_in[t] => section1, vector3_in[t] => section1)
+                sm_ar_5= bilinear_one_matrix(array5, nlongitude)
+                sm_ar_5_sum = sum(sm_ar_5, dims=1)
+                sm_ar_5_sum[1] = sm_ar_5_sum[1] ./ 128
+                sm_ar_5_sum[65] = sm_ar_5_sum[65] ./ 128
+                func_section1 = dot(sm_ar_5_sum, vector1_in)
+
+                if (func2 - vector2_in[t]) * (func_section1 - vector2_in[t]) < 0
+                    lower = section1 
+                else
+                    upper = section1
+                end
+                l += 1
             end
-            l += 1
         end
         if l == 1
-            z = array1[t]
+            sm_ar_5 = array1[t]
         end
-        array_out_1 = 10^6 .* z
+        array_out_1 = 10^6 .* sm_ar_5
         push!(final_co2_mat, array_out_1)
         println(l)
     end
@@ -464,7 +520,7 @@ function calc_co2_matrices(array_in, future_year_str, future_year_en, num_steps_
     g = zeros(Float64, (128, 65))
     if linear
         if row == 2 && future_year_str == 2022
-            x = range(future_year_str,future_year_en,12*years+1)
+            x = range(future_year_str, future_year_en, 12 * years + 1)
             f = zeros(Float64, 12 * years + 4)
             f[1] = array_in[1] + array_in[2] * (2021 + 11 / 12)
             push!(val, f[1])
@@ -472,22 +528,22 @@ function calc_co2_matrices(array_in, future_year_str, future_year_en, num_steps_
                 f[i] = array_in[1] + array_in[2] * x[i-1]
                 push!(val, f[i])
             end
-            f[12*years+3] = array_in[1] + array_in[2] * (future_year_en + 1/12)
-            f[12*years+4] = array_in[1] + array_in[2] * (future_year_en + 2/12)
-            push!(val,f[12*years+3])
-            push!(val,f[12*years+4])
- 
+            f[12*years+3] = array_in[1] + array_in[2] * (future_year_en + 1 / 12)
+            f[12*years+4] = array_in[1] + array_in[2] * (future_year_en + 2 / 12)
+            push!(val, f[12*years+3])
+            push!(val, f[12*years+4])
 
-        #elseif row == 2 && future_year_str !== 2022
-        #    f = zeros(Float64, num_steps_year * years + 1)
-        #    for i in 1:num_steps_year*years+1
-        #        f[i] = array_in[1] + array_in[2] * x[i]
-        #        push!(val, f[i])
-        #    end
+
+            #elseif row == 2 && future_year_str !== 2022
+            #    f = zeros(Float64, num_steps_year * years + 1)
+            #    for i in 1:num_steps_year*years+1
+            #        f[i] = array_in[1] + array_in[2] * x[i]
+            #        push!(val, f[i])
+            #    end
 
 
         else
-            x = range(future_year_str + 2/12, future_year_en + 2/12, 12 * years + 1)
+            x = range(future_year_str + 2 / 12, future_year_en + 2 / 12, 12 * years + 1)
             f = zeros(Float64, row)
             for i in 1:12*years+1
                 for j in 1:row
@@ -499,7 +555,7 @@ function calc_co2_matrices(array_in, future_year_str, future_year_en, num_steps_
         end
     else
         if row == 2 && future_year_str == 2022
-            x = range(future_year_str,future_year_en,12*years+1)
+            x = range(future_year_str, future_year_en, 12 * years + 1)
             f = zeros(Float64, 12 * years + 4)
             f[1] = exp(array_in[1] + array_in[2] * (2021 + 11 / 12))
             push!(val, f[1])
@@ -507,19 +563,19 @@ function calc_co2_matrices(array_in, future_year_str, future_year_en, num_steps_
                 f[i] = exp(array_in[1] + array_in[2] * x[i-1])
                 push!(val, f[i])
             end
-            f[12*years+3] = exp(array_in[1] + array_in[2] * (future_year_en + 1/12))
-            f[12*years+4] = exp(array_in[1] + array_in[2] * (future_year_en + 2/12))
-            push!(val,f[12*years+3])
-            push!(val,f[12*years+4])
+            f[12*years+3] = exp(array_in[1] + array_in[2] * (future_year_en + 1 / 12))
+            f[12*years+4] = exp(array_in[1] + array_in[2] * (future_year_en + 2 / 12))
+            push!(val, f[12*years+3])
+            push!(val, f[12*years+4])
 
-     #   elseif row == 2 && future_year_str !== 2022
-     #       f = zeros(Float64, num_steps_year * years + 1)
-     #       for i in 1:num_steps_year*years+1
-     #           f[i] = exp(array_in[1] + array_in[2] * x[i])
-     #           push!(val, f[i])
-     #       end
+            #   elseif row == 2 && future_year_str !== 2022
+            #       f = zeros(Float64, num_steps_year * years + 1)
+            #       for i in 1:num_steps_year*years+1
+            #           f[i] = exp(array_in[1] + array_in[2] * x[i])
+            #           push!(val, f[i])
+            #       end
         else
-            x = range(future_year_str + 2/12, future_year_en + 2/12, 12 * years + 1)
+            x = range(future_year_str + 2 / 12, future_year_en + 2 / 12, 12 * years + 1)
             f = zeros(Float64, row)
             for i in 1:12*years+1
                 for j in 1:row
@@ -555,18 +611,18 @@ function combine_matrices(array1_in, array2_in, counter)
     end
 end
 
-function calc_mean_co2(array_in,vector_in)
+function calc_mean_co2(array_in, vector_in)
     (row,) = size(array_in)
-    (nx,ny) = size(array_in[1])
+    (nx, ny) = size(array_in[1])
     mean_co2 = []
     for i in 1:row
-        sum_over_col = sum(array_in[i],dims=1)
+        sum_over_col = sum(array_in[i], dims=1)
         #update the first and last value of the sum because the poles are only a point
-        sum_over_col[1] = sum_over_col[1]./nx
-        sum_over_col[65] = sum_over_col[65]./nx
+        sum_over_col[1] = sum_over_col[1] ./ nx
+        sum_over_col[65] = sum_over_col[65] ./ nx
         #calc the mean co2
-        mean_val_co2 = dot(sum_over_col,vector_in)
-        push!(mean_co2,mean_val_co2)
+        mean_val_co2 = dot(sum_over_col, vector_in)
+        push!(mean_co2, mean_val_co2)
     end
     return mean_co2
 end

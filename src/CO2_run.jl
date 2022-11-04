@@ -35,12 +35,13 @@ with the average global CO2 concentration.
 =#
 
 read_south_pole_CO2_values()
-
-build_CO2_matrix_with_replaced_values(num,yearSP,monthSP)
-CO2_bilinear_interpolation(nasa_co2_mat_mod,nlongitude,counter)
+max_element_array()
+build_CO2_matrix_with_replaced_values(num,yearSP,monthSP,max_row_column)
+co2_bilinear_interpolation(nasa_co2_mat_mod,nlongitude,counter)
 #bilinear_one_matrix(nasa_co2_mat_mod[1],nlongitude)
 bisection(bilinear_co2_mat,nasa_co2_mat_mod,mesh.area,CO2_averages,CO2_averages_SP,counter)
 extend_co2_matrices(mesh,final_co2_mat,year_start,year_end,counter)
+calc_only_annual_year(bilinear_co2_mat,index)
 
 
 #=
@@ -301,70 +302,67 @@ xlabel!("year")
 savefig("co2_ols_lin_plot_t_var_x_const.png")
 
 
+plot(sol.year_array,temp_array[ind_1958:ind_2021-1,2].-temp_array[ind_1958,2].+sol.mean_temperature_yearly[1],label="NASA") 
+plot!(sol.year_array,temp_array[ind_1958:ind_2021-1,3].-temp_array[ind_1958,2].+sol.mean_temperature_yearly[1],label="NASA smoothed")
+plot!(sol.year_array,sol.mean_temperature_yearly,label="KK t, x var")
+plot!(sol2.year_array,sol2.mean_temperature_yearly,label="KK t var x const")
+ylabel!("Mean annual temperature [°C]")
+xlabel!("year")
+savefig("comparison to NASA vol_2.png")
 
+#for testing reasons
+(size_exp_co2,) = size(mean_co2_4)
+adj_exp_co2 = []
+adj_exp_co2_vec = []
+for i in 1:size_exp_co2
+  t = fill(mean_co2_4[i],nx,ny)
+  z = mean_co2_4[i]
+  push!(adj_exp_co2_vec,z)
+  push!(adj_exp_co2,t)
+end
+(size_lin_co2,) = size(mean_co2_5)
+adj_lin_co2 = []
+adj_lin_co2_vec = []
+for i in 1:size_lin_co2
+  t = fill(mean_co2_5[i],nx,ny)
+  z = mean_co2_5[i]
+  push!(adj_lin_co2_vec,z)
+  push!(adj_lin_co2,t)
+end
 
-#=
-#plotting co2
-time_scale_short = range(year_start+2/12,year_end+1+2/12,(year_end+1-year_start)*12+1)
+println("Case 9")
+model9 = Model(mesh,NT,adj_exp_co2[1])
+discretization9 = Discretization(mesh,model9,NT)
+compute_equilibrium!(discretization9)
+sol9 = compute_evolution!(discretization9,adj_exp_co2,year_start,future_year_end-1)
 
-plot(time_scale_short,mean_co2_1,label="KK t, x var")
-plot!(time_scale_short,co2_values[1:757],label="KK t var x const")
-ylabel!("Mean annual co2 concentration [ppm]")
-xlabel!("year") 
-savefig("co2_plot_t_variable.png")
+println("Case 10")
+model10 = Model(mesh,NT,adj_lin_co2[1])
+discretization10 = Discretization(mesh,model10,NT)
+compute_equilibrium!(discretization10)
+sol10 = compute_evolution!(discretization10,adj_lin_co2,year_start,future_year_end-1)
 
-time_scale_tiny = range(2003+2/12,2017+2/12,(2017-2003)*12+1)
-plot(time_scale_tiny,same_co2_vec[1:169],label="KK t, x const")
-plot!(time_scale_tiny,mean_co2_3,label="KK t const x var")
-ylabel!("Mean annual co2 concentration [ppm]")
-xlabel!("year") 
-savefig("co2_plot_t_const.png")
-
-time_scale_long = range(year_start+2/12,future_year_end+2/12,(future_year_end-year_start)*12+1) # adding 2/12 because of start in 
-#time_scale_KK = time_scale[3:end]
-plot(time_scale_long,mean_co2_4,label="KK t, x var lin")
-plot!(time_scale_long,mat1,label="KK t var x const lin")
-ylabel!("Mean annual co2 concentration [ppm]")
-xlabel!("year") 
-savefig("co2_t_var_x_const.png")
+plot(sol6.year_array,sol6.mean_temperature_yearly,label="KK t, x var lin")
+plot!(sol10.year_array,sol10.mean_temperature_yearly,label="KK t var, x const lin")
+ylabel!("Mean annual temperature [°C]")
+xlabel!("year")
+savefig("Temp mit CO2 angepasst linear.png")
 
 plot(time_scale_long,mean_co2_5,label="KK t, x var lin")
-plot!(time_scale_long,mat2,label="KK t var x const lin")
+plot!(time_scale_long,adj_lin_co2_vec,label="KK t var x const lin")
 ylabel!("Mean annual co2 concentration [ppm]")
 xlabel!("year") 
-savefig("co2_ols_lin_plot_t_var_x_const.png")
+savefig("co2_ols_lin_gleich.png")
+
+
+plot(sol5.year_array,sol5.mean_temperature_yearly,label="KK t, x var exp")
+plot!(sol9.year_array,sol9.mean_temperature_yearly,label="KK t var, x const exp")
+ylabel!("Mean annual temperature [°C]")
+xlabel!("year")
+savefig("Temp mit CO2 angepasst exponentiell.png")
 
 plot(time_scale_long,mean_co2_4,label="KK t, x var exp")
-plot!(time_scale_long,mean_co2_5,label="KK t, x var exp")
+plot!(time_scale_long,adj_exp_co2_vec,label="KK t var x const exp")
 ylabel!("Mean annual co2 concentration [ppm]")
 xlabel!("year") 
-savefig("co2_ols_plot_t_x_var.png")
-
-plot(time_scale_long,mat1,label="KK t, x var lin")
-plot!(time_scale_long,mat2,label="KK t var x const lin")
-ylabel!("Mean annual co2 concentration [ppm]")
-xlabel!("year") 
-savefig("co2_ols_lin_plot_t_var_x_const.png")
-=#
-
-
-#plot!(sol1.year_array,temp_array[ind1:ind2-1,2].-temp_array[ind1,2].+sol1.mean_temperature_yearly[1],label="NASA") 
-#plot!(sol1.year_array,temp_array[ind1:ind2-1,3].-temp_array[ind1,2].+sol1.mean_temperature_yearly[1],label="NASA smoothed")
- #plot!(sol1.year_array,temp_array[ind1:ind2-1,2].-temp_array[ind1,2].+14.0,label="NASA") 
- #plot!(sol1.year_array,temp_array[ind1:ind2-1,3].-temp_array[ind1,2].+14.0,label="NASA smoothed")
-
-
-
-
-
-# Plotting co2 concentration 
-# month_steps1 = range(1959,2020,744)
-# month_steps1_1 = range(1959,2021,756)
-#x = 1959:2020:744
-# println(x)
-#ind_1959 = findfirst(CO2_Array[:,4].==1959)
-#plot!(month_steps1,co2_values[11:754],label="CO2_average-Verlauf")
-#ylabel!("CO2 (ppm)")
-#xlabel!("year")
-#savefig("CO2-Verlauf")
-
+savefig("co2_ols_exp_gleich.png")
